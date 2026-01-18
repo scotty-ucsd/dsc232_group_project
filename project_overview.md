@@ -68,7 +68,7 @@
 - 2025
 - GRACE/GRACE-FO and ICESat-2 for Surface Water Volume estimates
 - "Our results underscore the value of improved vertical DEM availability for global hydrological studies and offer a scalable framework for future applications. Future work will focus on expanding our DEM dataset, further validation, and scaling this methodology for global applications"
-### [Decadal Survey for Earth Science and Applications from Space](https://doi.org/10.17226/2618)
+### [Decadal Survey for Earth Science and Applications from Space](https://www.nationalacademies.org/read/24938)
 - Protips from the pros
 ### [BEDMAP3](https://www.nature.com/articles/s41597-025-04672-y)
 - just info on BEDMAP3 dataset
