@@ -57,7 +57,9 @@
     #### 3.2 Comments
     - longitude: not sure but will convert once down loaded
     - larger resolution than ICESat-2 but smaller than GRACE
-
+### 4.Bonus if needed
+- https://mcm.lternet.edu/real-time-data-dashboards
+    - like U.S. SNOTEL
 ## Key Papers
 
 ### [Understanding Regional Ice Sheet Mass Balance: Remote Sensing, Regional Climate Models, and Deep Learning](https://www.proquest.com/docview/2394919770/abstract/BC130FB0A627484FPQ/1?accountid=14524&sourcetype=Dissertations%20&%20Theses)
