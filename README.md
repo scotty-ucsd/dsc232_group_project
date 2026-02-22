@@ -168,12 +168,25 @@ How many observations does this dataset have?
 
 #### Data Plots
 
+!['Histograms'](eda_sdsc\data\eda_plots\fig_03_histograms_antarctica_sparse_features.png)
+
+!['Correlations'](eda_sdsc\data\eda_plots\fig_04_correlation_antarctica_sparse_features.png)
+
+!['Box Plots/Distributions'](eda_sdsc\data\eda_plots\fig_05_physical_ranges.png)
+
+!['Missing Values'](eda_sdsc\data\eda_plots\fig_06_null_structure.png)
+
+!['Ice Mask & Ocean Data Coverage'](eda_sdsc\data\eda_plots\fig_07_ice_mask_ocean_coverage.png)
+
+!['Height Change & Mass Anomaly'](eda_sdsc\data\eda_plots\fig_08_delta_h_vs_lwe_spatial.png)
+
+!['Mean Antarctic Ice Height Change, by Month'](eda_sdsc\data\eda_plots\fig_09_delta_h_timeseries.png)
+
+* We're going to investigate this upward trend a bit more, since it may seem counter-intuitive at first glance.  It may be that increased melting in the Antarctic is resulting in greater changes in ice thickness, even if mean ice thickness is decreasing (see graph below).
+
+!['Mean Antarctic Ice Height (LWE), by Month'](eda_sdsc\data\eda_plots\fig_10_lwe_timeseries.png)
 
 
-
-* Create visualizations using Spark aggregations + matplotlib/plotly (sample data for plotting if needed)
-* Plot your data with various chart types: bar charts, histograms, scatter plots, etc.
-* Clearly explain each plot and what insights it provides
 
 ### Preprocessing Plan
 
