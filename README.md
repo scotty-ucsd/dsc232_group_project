@@ -2,6 +2,7 @@
 
 ### Data
 * The dataset is the combination of 5 heterogeneous Antartic datasets:
+
 | Dataset | What It Measures | Native Format | Resolution |
 |---|---|---|---|
 | **ICESat-2 ATL15** | Ice surface elevation change | NetCDF (HDF5 groups, 4 tiles) | 1 km |
@@ -100,6 +101,7 @@
     * Total Number of Rows: 1,386,866,499
     * Total Observations: 38,832,261,972
 * Schema Details
+
 | # | Column | Type | Dims | Description | Source |
 |---|---|---|---|---|---|
 | 1 | `y` | float64 | — | EPSG:3031 northing [m] | Coordinates |
