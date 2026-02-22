@@ -1,7 +1,15 @@
-## Milestone 2
 
-### Data
-* The dataset is the combination of 5 heterogeneous Antartic datasets:
+
+# Milestone 2
+
+
+## __Antarctica's Digital Twin: Exploratory Data Analysis (EDA)__
+
+* This project explores a high-resolution, multimodal dataset fusing laser altimetry, gravity fields, ocean thermodynamics, and sub-glacial topography across the Antarctic continent (2019–2025)
+* The goal is to provide a "physics-ready" feature space for machine learning models predicting ice sheet instability.
+
+## Dataset
+The dataset is the combination of 5 heterogeneous Antartic datasets:
 
 | Dataset | What It Measures | Native Format | Resolution |
 |---|---|---|---|
@@ -11,7 +19,20 @@
 | **GLORYS12V1** | Ocean temperature & salinity (4D) | NetCDF (lat/lon/depth/time) | 1/12° (~8 km) |
 | **Master Grid** | Coordinate reference template | Created by pipeline | 500 m |
 
-* While sample data can be accessed directly in the repo, the full merged dataset can be accessed [here](https://drive.google.com/file/d/1SCAh3grsFHkzpx7UXMOyG7_7V2c_xyG0/view?usp=sharing)
+The unification of these datasets is reviewed below in "Preprocessing Plan" and described in detail [here](https://github.com/scotty-ucsd/dsc232_group_project/tree/Milestone2/pre_pre_processing_pipeline/docs/COMPREHENSIVE_EDA_AND_PREPROCESSING.md) (also linked below).
+
+
+
+### GitHub Repository Setup
+- GitHub IDs for Scotty Rogers and Hans Hanson: *scotty-ucsd* and *hanspeder*
+- Public GitHub Repository for this project: https://github.com/scotty-ucsd/dsc232_group_project
+    - Scotty Rogers and Hans Hanson are collaborators
+- Links to data
+    - Full dataset on SDSC and also available [here](https://drive.google.com/file/d/1SCAh3grsFHkzpx7UXMOyG7_7V2c_xyG0/view?usp=sharing)
+    - Sample data can be accessed directly in this repo
+
+
+
 
 ### SDSC Expanse Environment Setup
 
@@ -88,7 +109,11 @@
         * `spark.executor.memory` is `19` GB and we have a total of `6` `spark.executor.instances`, this results in using `114` GB
         * `spark.driver.memory` is set to `10` GB, so that brings the total up to `124` GB and leaves a safety buffer of `4`GB for the VM operating system.
 
-### Data Exploration
+Screenshot of Spark UI showing multiple executors active during data loading:
+
+![screenshot](screenshot.png)
+
+### Data Exploration using Spark
 #### Spark methods
 * `df.schema` was used to find column names and data types
 * `df.count()` was used to find the number of rows
@@ -96,10 +121,12 @@
 * `df.agg()` with SQL functions was used to find min,max,mean,standard deviation
 
 #### EDA Results
+How many observations does this dataset have?
 * `antarctica_sparse_features.parquet` is a massive ~40GB compressed parquet file
     * Total Number of Columns: 28
     * Total Number of Rows: 1,386,866,499
     * Total Observations: 38,832,261,972
+
 * Schema Details
 
 | # | Column | Type | Dims | Description | Source |
@@ -136,17 +163,46 @@
 | 30 | `month_idx` | int32 | — | Partition key (Year×12+Month) | Derived |
 
 > **Key**: "t" in the Dims column indicates the column varies with time (per ICESat-2 observation epoch).
-#### Data Polts
+
+
+
+#### Data Plots
+
+
+
+
 * Create visualizations using Spark aggregations + matplotlib/plotly (sample data for plotting if needed)
 * Plot your data with various chart types: bar charts, histograms, scatter plots, etc.
 * Clearly explain each plot and what insights it provides
 
 ### Preprocessing Plan
-* How will you handle missing values?
-* How will you handle data imbalance (if applicable)?
+
+- We realize that we are supposed to describe our plan for, not perform, preprocessing here, but a significant amount of "pre-pre-processing" was required to fuse the above datasets.  As mentioned in our project abstract, one of our group members, Scotty Rogers, is familiar and works professionally with satellite data at Los Alamos National Laboratory.  Motivated by his own interest in the Antarctic-related satellite data, he fused the above datasets to create a unified one suitable for this project.  This was a major effort in itself and required numerous pre-processessing steps, such as reconciling the differing spatial resolutions between the datasets (500m, 1km, 8km, and 27km) as well as two different coordinate systems, EPSG: 4326 (geographic) and EPSG:3031 (Antarctic Polar Stereographic).
+
+* A detailed explanation and summary of this "pre-pre-processing pipeline" can be found [here](https://github.com/scotty-ucsd/dsc232_group_project/tree/Milestone2/pre_pre_processing_pipeline/docs/COMPREHENSIVE_EDA_AND_PREPROCESSING.md).
+
+
+- How we plan to handle missing values
+    - This dataset is large enough that we can afford to drop missing values rather than impute them
+    - In some cases, 
+
+- How we will handle data imbalance (if applicable)
     * maybe 
-* What transformations will you apply (scaling, encoding, feature engineering)?
-    * `exact_time` will be scaled 0 to 1 using `df.withColumn` and SQL funtions
+
+- Transformations to apply (scaling, encoding, feature engineering)
+    * `exact_time` will be scaled 0 to 1 using `df.withColumn` and SQL functions
     * `lwe` columns will be converted to meters from cm and mm
-* What Spark operations will you use for preprocessing?
+
+- Spark operations to be used
+
+
+
+
+### Jupyter Notebook Links
+
+[Notebook for SDSC](/eda_sdsc/sdsc_eda.ipynb)
+
+[Additional EDA on SDSC](/eda_sdsc/bonus_eda_plots.ipynb)
+
+[Notebook for sample data](EDA_local_sample_data.ipynb)
 
