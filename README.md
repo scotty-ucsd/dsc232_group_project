@@ -170,38 +170,40 @@ How many observations does this dataset have?
 
 *Plots/visualizations appear first, explanations or comments below each*
 
-!['Histograms'](eda_sdsc\data\eda_plots\fig_03_histograms_antarctica_sparse_features.png)
+!['Histograms'](eda_sdsc/data/eda_plots/fig_03_histograms_antarctica_sparse_features.png)
 
 * These histograms show the distribution of values for each column.  The first two are as one would expect: lots of surface slope values near zero (i.e. near ocean) and a normal distribution for bedrock.  The ice thickness distribution may be due to underlying bedrock and/or water.  The elevation change distribution (delta_h) shows that the changes are relatively small.
 
-!['Correlations'](eda_sdsc\data\eda_plots\fig_04_correlation_antarctica_sparse_features.png)
+!['Correlations'](eda_sdsc/data/eda_plots/fig_04_correlation_antarctica_sparse_features.png)
 
 * Correlation between features in the fused dataset.  These are inuitive: the ice surface elevation is very strongly correlated with ice thickness and, to a less extend, bedrock elevation. 
 
-!['Box Plots/Distributions'](eda_sdsc\data\eda_plots\fig_05_physical_ranges.png)
+!['Box Plots/Distributions'](eda_sdsc/data/eda_plots/fig_05_physical_ranges.png)
 
 * These again show distribution of values for these columns.  Note the wide ranges of values for surface and bedrock elevation and ice thickness vs. the much smaller ranges for ocean temperature (thetao_mo), salinity (so_mo), monthly freezing point (t_f_mo), and thermal driving (t_star).
 
-!['Missing Values'](eda_sdsc\data\eda_plots\fig_06_null_structure.png)
+!['Missing Values'](eda_sdsc/data/eda_plots/fig_06_null_structure.png)
 
 * Missing data in for ocean is expected, there is a limited area where it is defined (essentially where ocean touches ice)
 * ~8% missing values from ICESat-2 data (dhdt_lag1) is due to missing dates in netCDF files
 
-!['Ice Mask & Ocean Data Coverage'](eda_sdsc\data\eda_plots\fig_07_ice_mask_ocean_coverage.png)
+!['Ice Mask & Ocean Data Coverage'](eda_sdsc/data/eda_plots/fig_07_ice_mask_ocean_coverage.png)
 
 * This is an exploratory test of whether the ice_mask (i.e. whether the ice is grounded or floating) and the (monthly) ocean temperature (thetao_mo) values seem plausible.  Both do: the floating ice appears on coastlines and bays/inlets, as opposed to in the middle of the continent, and this corresponds with where we have valid ocean temperature values.
 
-!['Height Change & Mass Anomaly'](eda_sdsc\data\eda_plots\fig_08_delta_h_vs_lwe_spatial.png)
+!['Height Change & Mass Anomaly'](eda_sdsc/data/eda_plots/fig_08_delta_h_vs_lwe_spatial.png)
 
 * This is another exploratory test of whether the height change and liquid water values seem plausible.  Again, both do: the greatest height changes appear near the coasts, as opposed to inland, as well as the liquid water values.
 
-!['Mean Antarctic Ice Height Change, by Month'](eda_sdsc\data\eda_plots\fig_09_delta_h_timeseries.png)
+!['Mean Antarctic Ice Height Change, by Month'](eda_sdsc/data/eda_plots/fig_09_delta_h_timeseries.png)
 
 * We're going to investigate this upward trend a bit more, since it may seem counter-intuitive at first glance.  It may be that increased melting in the Antarctic is resulting in greater changes in ice thickness, even if mean ice thickness is decreasing (see graph below).
 
-!['Mean Antarctic Ice Height (LWE), by Month'](eda_sdsc\data\eda_plots\fig_10_lwe_timeseries.png)
+!['Mean Antarctic Ice Height (LWE), by Month'](eda_sdsc/data/eda_plots/fig_10_lwe_timeseries.png)
 
 * Whereas the previous visualization showed ice height change, this just shows the average ice height.  Intuitively, it has been decreasing over time.
+
+
 
 ## Preprocessing Plan
 
