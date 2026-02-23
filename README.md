@@ -111,7 +111,7 @@ The unification of these datasets is reviewed below in "Preprocessing Plan" and 
 
 Screenshot of Spark UI showing multiple executors active during data loading:
 
-![screenshot](screenshot.png)
+!['sparkUI_screenshot'](screenshot.png)
 
 ## Data Exploration using Spark
 #### Spark methods
@@ -212,25 +212,34 @@ How many observations does this dataset have?
 * A detailed explanation and summary of this "pre-pre-processing pipeline" can be found [here](https://github.com/scotty-ucsd/dsc232_group_project/tree/Milestone2/pre_pre_processing_pipeline/docs/COMPREHENSIVE_EDA_AND_PREPROCESSING.md).
 
 
-- How we plan to handle missing values
-    - This dataset is large enough that we can afford to drop missing values rather than impute them
-    - In some cases, 
-
-- How we will handle data imbalance (if applicable)
-    * maybe 
-
-- Transformations to apply (scaling, encoding, feature engineering)
-    * `exact_time` will be scaled 0 to 1 using `df.withColumn` and SQL functions
-    * `lwe` columns will be converted to meters from cm and mm
-
-- Spark operations to be used
+* Fix ice area conservation
+    * Comment: Currently the *pre-preprocessing* uses a bilinear interpolation from `xarray` to fill ice area when downscaling.
+        * Inplace of the bilinear interpolation we will divide the ice area and distribute equally to each 500m cell
+* Investigate 2019 lwe_fused point
+    * Comment: As seen in the EDA step there is a large spike in 2019 for the GRACE-FO `lwe_fused` variable and we will need to ensure there is not a mistake in the pre-preprocessing pipeline.
+        * We will first investigate the raw netCDF file then work our way down the pre-preprocessing pipeline should an issue be identified. 
+* Temporal Feature Engineering
+    * Comment: The `exact_time` column is a timestamp and we must ensure that future models do not learn a false linear ordering. To fix this we will extract the month of the year from `exact-time` then project it onto a unit circle.
+    * $\text{month}_{sin} = sin(\frac{2\pi \cdot month_{i}}{12})$
+    * $\text{month}_{cos} = cos(\frac{2\pi \cdot month_{i}}{12})$
+    * Method: The transformation requires extracting the month from the timestamp using `F.month(F.col("exact_time"))`, then applying `F.sin()` and `F.cos()` with the
+appropriate scaling factor $\frac{2\pi}{12}$. This will produce two new continuous columns (`month_sin`, `month_cos`) that replace `exact_time` in the feature vector.
+* Ocean Null Values
+    * Comment: To handle the valid null values in the ocean features, we will take a two step approach.
+        * 1. Create a binary classifier where we have valid ocean data.
+            * Method: We will use something like `F.when(F.col("thetao_mo").isNotNull(), 1).otherwise(0)` to create the binary classifier. 
+        * 2. Using the biniary classifier previously created, we will fill all non-valid ocean data features with `0.0` or other appropriate fill value.
+            * Method: We will use df.fillna({ocean_feature_1: 0, ocean_feature_2: 0,..., ocean_feature_N: 0}) to fill non-valid data.
+* Scale *Long Tail* Features
+    * Comment: As seen in the EDA step, some of the histograms are skewed. To adjust these features we will apply a log transformation. 
+    * Method: We will use `F.log1p(F.col(skewed_feature))` to scale highly skewed features.
 
 
 
 
 ### Jupyter Notebook Links
 
-[Notebook for SDSC](/eda_sdsc/sdsc_eda.ipynb)
+[Notebook for SDSC](EDA_SDSC.ipynb)
 
 [Additional EDA on SDSC](/eda_sdsc/bonus_eda_plots.ipynb)
 
