@@ -3,7 +3,7 @@
 # Milestone 2
 
 
-## __Antarctica's Digital Twin: Exploratory Data Analysis (EDA)__
+## Antarctica's Digital Twin: Exploratory Data Analysis (EDA)
 
 * This project explores a high-resolution, multimodal dataset fusing laser altimetry, gravity fields, ocean thermodynamics, and sub-glacial topography across the Antarctic continent (2019–2025)
 * The goal is to provide a "physics-ready" feature space for machine learning models predicting ice sheet instability.
@@ -23,7 +23,7 @@ The unification of these datasets is reviewed below in "Preprocessing Plan" and 
 
 
 
-### GitHub Repository Setup
+## GitHub Repository Setup
 - GitHub IDs for Scotty Rogers and Hans Hanson: *scotty-ucsd* and *hanspeder*
 - Public GitHub Repository for this project: https://github.com/scotty-ucsd/dsc232_group_project
     - Scotty Rogers and Hans Hanson are collaborators
@@ -34,7 +34,7 @@ The unification of these datasets is reviewed below in "Preprocessing Plan" and 
 
 
 
-### SDSC Expanse Environment Setup
+## SDSC Expanse Environment Setup
 
 #### Jupyter Session Details
 * Account:
@@ -113,7 +113,7 @@ Screenshot of Spark UI showing multiple executors active during data loading:
 
 ![screenshot](screenshot.png)
 
-### Data Exploration using Spark
+## Data Exploration using Spark
 #### Spark methods
 * `df.schema` was used to find column names and data types
 * `df.count()` was used to find the number of rows
@@ -166,19 +166,34 @@ How many observations does this dataset have?
 
 
 
-#### Data Plots
+## Data Plots
+
+*Plots/visualizations appear first, explanations or comments below each*
 
 !['Histograms'](eda_sdsc\data\eda_plots\fig_03_histograms_antarctica_sparse_features.png)
 
+* These histograms show the distribution of values for each column.  The first two are as one would expect: lots of surface slope values near zero (i.e. near ocean) and a normal distribution for bedrock.  The ice thickness distribution may be due to underlying bedrock and/or water.  The elevation change distribution (delta_h) shows that the changes are relatively small.
+
 !['Correlations'](eda_sdsc\data\eda_plots\fig_04_correlation_antarctica_sparse_features.png)
+
+* Correlation between features in the fused dataset.  These are inuitive: the ice surface elevation is very strongly correlated with ice thickness and, to a less extend, bedrock elevation. 
 
 !['Box Plots/Distributions'](eda_sdsc\data\eda_plots\fig_05_physical_ranges.png)
 
+* These again show distribution of values for these columns.  Note the wide ranges of values for surface and bedrock elevation and ice thickness vs. the much smaller ranges for ocean temperature (thetao_mo), salinity (so_mo), monthly freezing point (t_f_mo), and thermal driving (t_star).
+
 !['Missing Values'](eda_sdsc\data\eda_plots\fig_06_null_structure.png)
+
+* Missing data in for ocean is expected, there is a limited area where it is defined (essentially where ocean touches ice)
+* ~8% missing values from ICESat-2 data (dhdt_lag1) is due to missing dates in netCDF files
 
 !['Ice Mask & Ocean Data Coverage'](eda_sdsc\data\eda_plots\fig_07_ice_mask_ocean_coverage.png)
 
+* This is an exploratory test of whether the ice_mask (i.e. whether the ice is grounded or floating) and the (monthly) ocean temperature (thetao_mo) values seem plausible.  Both do: the floating ice appears on coastlines and bays/inlets, as opposed to in the middle of the continent, and this corresponds with where we have valid ocean temperature values.
+
 !['Height Change & Mass Anomaly'](eda_sdsc\data\eda_plots\fig_08_delta_h_vs_lwe_spatial.png)
+
+* This is another exploratory test of whether the height change and liquid water values seem plausible.  Again, both do: the greatest height changes appear near the coasts, as opposed to inland, as well as the liquid water values.
 
 !['Mean Antarctic Ice Height Change, by Month'](eda_sdsc\data\eda_plots\fig_09_delta_h_timeseries.png)
 
@@ -186,9 +201,9 @@ How many observations does this dataset have?
 
 !['Mean Antarctic Ice Height (LWE), by Month'](eda_sdsc\data\eda_plots\fig_10_lwe_timeseries.png)
 
+* Whereas the previous visualization showed ice height change, this just shows the average ice height.  Intuitively, it has been decreasing over time.
 
-
-### Preprocessing Plan
+## Preprocessing Plan
 
 - We realize that we are supposed to describe our plan for, not perform, preprocessing here, but a significant amount of "pre-pre-processing" was required to fuse the above datasets.  As mentioned in our project abstract, one of our group members, Scotty Rogers, is familiar and works professionally with satellite data at Los Alamos National Laboratory.  Motivated by his own interest in the Antarctic-related satellite data, he fused the above datasets to create a unified one suitable for this project.  This was a major effort in itself and required numerous pre-processessing steps, such as reconciling the differing spatial resolutions between the datasets (500m, 1km, 8km, and 27km) as well as two different coordinate systems, EPSG: 4326 (geographic) and EPSG:3031 (Antarctic Polar Stereographic).
 
