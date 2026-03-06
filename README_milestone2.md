@@ -127,7 +127,7 @@ How many observations does this dataset have?
     * Total Number of Rows: 1,386,866,499
     * Total Observations: 38,832,261,972
 
-* Schema Details
+#### Columns Overview
 
 | # | Column | Type | Dims | Description | Source |
 |---|---|---|---|---|---|

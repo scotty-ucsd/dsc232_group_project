@@ -1673,7 +1673,7 @@ def save_predictions(preds: DataFrame, model_name: str, split_name: str) -> None
 
 
 # ---------------------------------------------------------------------
-# train_xgb: Train SparkXGBClassifier models.
+# ## train_xgb: Train SparkXGBClassifier models.
 # ---------------------------------------------------------------------
 def train_xgb(train: DataFrame, val: DataFrame, test: DataFrame) -> List[Dict]:
     """Train SparkXGBClassifier models."""
@@ -1972,7 +1972,7 @@ def train_classic(train: DataFrame, val: DataFrame, test: DataFrame) -> List[Dic
     train_p.unpersist()
     return results
 
-
+# ## train_map
 TRAIN_MAP = {
     "xgb": train_xgb,
     "stack": train_stack,
@@ -2250,7 +2250,7 @@ def print_conclusion() -> None:
 
 
 # ---------------------------------------------------------------------
-# run_all: Main entry point.  Call from notebook or as script.
+# ## run_all: Main entry point.  Call from notebook or as script.
 # ---------------------------------------------------------------------
 def run_all():
     """Main entry point.  Call from notebook or as script."""
