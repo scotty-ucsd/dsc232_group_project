@@ -4,10 +4,11 @@
 We composed this readme file specifically for Milestone 3 and for ease of evaluation, not as a complete one for the whole project and final submission.
 However, we have updated the complete readme file with our new work and all changes, per Milestone 3 instructions, and have linked to it here and below.  Thus, if desired, one may use the complete readme file instead of this one to evaluate our Milestone 3 submission.
 
-## Antarctica's Digital Twin: Exploratory Data Analysis (EDA)
+## Predicting Antarctic Melting
 
-* This project explores a high-resolution, multimodal dataset fusing laser altimetry, gravity fields, ocean thermodynamics, and sub-glacial topography across the Antarctic continent (2019–2025)
-* The goal is to provide a "physics-ready" feature space for machine learning models predicting ice sheet instability.
+* This project explores a high-resolution, multimodal dataset fusing laser altimetry, gravity fields, ocean thermodynamics, and sub-glacial topography across the Antarctic continent (2020–2025)
+* The fused dataset is intended to be a "physics-ready" feature space for machine learning models predicting ice sheet instability.
+* We are employing classification models to predict whether the datasets agree upon major mass anomalies ("basal_loss_agreement").
 
 ## Previous (Milestone 2 ) Links
 - [Dataset](README_milestone2.md#dataset)
@@ -264,7 +265,7 @@ The ~19% ROC-AUC gap between train and test is a clear overfitting signal. The m
 
 **Result:** XGB_Tuned achieves marginally better test ROC-AUC (0.749 vs 0.740) but **worse test PR-AUC** (0.090 vs 0.091). The overfitting gap actually *increased* slightly (0.193 vs 0.190). The tuned hyperparameters successfully increased train performance but the regularisation was insufficient to close the generalisation gap.
 
-* **Note on the current `XGB_CONFIGS`:** Both produced similar overfitting patterns.
+* **Note on the current [XGB_CONFIGS](https://github.com/scotty-ucsd/dsc232_group_project/blob/Milestone3/ml_prep/ml_pipeline.py#L212):** Both produced similar overfitting patterns.
 
 #### Which Model Performs Best?
 
