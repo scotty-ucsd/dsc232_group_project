@@ -2,9 +2,9 @@
 
 # Milestone 3
 We composed this readme file specifically for Milestone 3 and for ease of evaluation, not as a complete one for the whole project and final submission.
-However, we have updated the complete readme file with our new work and all changes, per Milestone 3 instructions, and have linked to it [here](https://github.com/scotty-ucsd/dsc232_group_project/tree/main/README.md) and below.  Thus, if desired, one may use the complete readme file instead of this one to evaluate our Milestone 3 submission.
+However, we have updated the complete readme file with our new work and all changes, per Milestone 3 instructions, and have linked to it [here](https://github.com/scotty-ucsd/dsc232_group_project/blob/main/README.md) and below.  Thus, if desired, one may use the complete readme file instead of this one to evaluate our Milestone 3 submission.
 
-## Predicting Antarctic Melting
+## Antarctic Ice Sheet Instability Prediction
 
 * This project explores a high-resolution, multimodal dataset fusing laser altimetry, gravity fields, ocean thermodynamics, and sub-glacial topography across the Antarctic continent (2020–2025)
 * The fused dataset is intended to be a "physics-ready" feature space for machine learning models predicting ice sheet instability.
@@ -299,7 +299,7 @@ So the current model under consideration and our plan for the next steps is as f
 - Fixed problems identified in Milestone 2 checkpoint [here](README_milestone2.md#preprocessing-plan), including 2019 spike in GRACE-FO `lwe_fused` variable.  In the case of the latter problem, we've decided the problem was filling null values with zero.  Since we have plenty of observations, the easiest solution is to simply drop 2019.
 - Organized various pipeline files for the different models (see ml_prep folder [here](https://github.com/scotty-ucsd/dsc232_group_project/blob/Milestone3/ml_prep)).
 - Created numerous slurm scripts to streamline training (see .sh files in ml_prep folder above)
-- Updating [README.md](https://github.com/scotty-ucsd/dsc232_group_project/tree/main/README.md) for overall project, which will be used for final submission 
+- Updating [README.md](https://github.com/scotty-ucsd/dsc232_group_project/blob/main/README.md) for overall project, which will be used for final submission 
 
 ### [Back to Milestone 3 Contents](#milestone-3-contents)
 ## Conclusion of First Model and Possible Improvements
