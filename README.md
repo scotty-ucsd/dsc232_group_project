@@ -8,6 +8,8 @@
     <strong>Hans Hanson</strong> (Analysis & Writeup)
   </p>
 
+!['antarctica_eda_images_for_header'](eda_sdsc/data/eda_plots/antarctica_eda_images_for_header.png)
+
   <div>
     <img src="https://img.shields.io/badge/Apache_Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white" />
     <img src="https://img.shields.io/badge/XGBoost-189FDD?style=for-the-badge&logo=xgboost&logoColor=white" />
@@ -19,19 +21,20 @@
 
 ---
 
-<p align="right">
-  <a href="#1-introduction">Introduction</a> |
-  <a href="#2-figures">Figures</a> |
-  <a href="#3-methods">Methods</a> |
-  <a href="#4-results">Results</a> |
-  <a href="#5-discussion">Discussion</a> |
-  <a href="#6-conclusion">Conclusion</a> |
-  <a href="#7-statement-of-collaboration">Collaboration</a>
+<p align="center">
+  <a href="#1-introduction" style="font-size: 16px;">Introduction</a> |
+  <a href="#2-figures" style="font-size: 16px;">Figures</a> |
+  <a href="#3-methods" style="font-size: 16px;">Methods</a> |
+  <a href="#4-results" style="font-size: 16px;">Results</a> |
+  <a href="#5-discussion" style="font-size: 16px;">Discussion</a> |
+  <a href="#6-conclusion" style="font-size: 16px;">Conclusion</a> |
+  <a href="#7-statement-of-collaboration" style="font-size: 16px;">Collaboration</a>
 </p>
 
 ---
 
 ## 1. Introduction
+[Back to Top](#)
 
 ### Why This Project?
 
@@ -65,6 +68,7 @@ This problem requires big data and distributed computing for the following reaso
 <!-- | **Model 2** | SVD dimensionality reduction → KMeans clustering → GBTClassifier on principal components | -->
 
 ## 2. Figures
+[Back to Top](#)
 
 ### Data Exploration
 
@@ -123,6 +127,7 @@ This problem requires big data and distributed computing for the following reaso
 ---
 
 ## 3. Methods
+[Back to Top](#)
 
 ### 3.1 Data Exploration
 
@@ -283,6 +288,7 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 -->
 
 ## 4. Results
+[Back to Top](#)
 
 ### 4.1 Model 1: XGBoost
 
@@ -365,6 +371,7 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 ---
 
 ## 5. Discussion
+[Back to Top](#)
 
 ### 5.1 Model 1 Interpretation
 
@@ -450,6 +457,7 @@ We acknowledge several limitations:
 ---
 
 ## 6. Conclusion
+[Back to Top](#)
 
 ### What We Learned
 
@@ -476,10 +484,7 @@ We acknowledge several limitations:
 ---
 
 ## 7. Statement of Collaboration
-
-`[PLACEHOLDER — fill in with actual team member names, roles, and contributions]`
-
-**Format:** `Name: Title: Contribution`
+[Back to Top](#)
 
 - **Scotty Rogers**: Pipeline Architect & Data Engineer: Designed and implemented the end-to-end Spark pipeline including raw data fusion (5 satellite datasets), feature engineering (55+ features), label construction (dual-sensor), XGBoost + SVD/KMeans model training, and HPC deployment on SDSC Expanse. Managed the Singularity container environment and Slurm job scheduling.
 
