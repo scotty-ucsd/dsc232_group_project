@@ -23,7 +23,7 @@
 
 <p align="center">
   <a href="#1-introduction" style="font-size: 16px;">Introduction</a> |
-  <a href="#2-figures" style="font-size: 16px;">Figures</a> |
+  <!--<a href="#2-figures" style="font-size: 16px;">Figures</a> |  I'm thinking no separate section for these -->
   <a href="#3-methods" style="font-size: 16px;">Methods</a> |
   <a href="#4-results" style="font-size: 16px;">Results</a> |
   <a href="#5-discussion" style="font-size: 16px;">Discussion</a> |
@@ -67,10 +67,54 @@ This problem requires big data and distributed computing for the following reaso
 ---
 <!-- | **Model 2** | SVD dimensionality reduction → KMeans clustering → GBTClassifier on principal components | -->
 
+<!-- I think figures shoudl just be interspersed, or put where they come up--in our case, that's mostly EDA section
 ## 2. Figures
 [Back to Top](#)
+-->
 
-### Data Exploration
+<!--  
+### SVD / PCA Results (or corrected_stack)
+
+> **Figure 2.4:
+-->
+
+<!-- i don't think we need these here?
+### Model Performance
+
+> **Figure 2.5: [INSERT COMMENT HERE]
+
+> **Figure 2.6: [INSERT COMMENT HERE]
+
+### Predictions
+
+> **Figure 2.7: [INSERT COMMENT HERE]
+
+-->
+
+---
+
+## 3. Methods
+[Back to Top](#)
+
+### 3.1 Data Exploration
+
+
+The Antarctic fused dataset was constructed by spatially joining five satellite products onto a common 500m Antarctic Polar Stereographic (EPSG:3031) grid (for details, see link below in preprocessing section):
+
+| Dataset | Measures | Resolution |
+|---|---|---|
+| ICESat-2 ATL15 | Ice surface elevation change | 1 km |
+| GRACE/GRACE-FO | Gravitational mass anomaly | ~27 km |
+| Bedmap3 | Sub-surface topography & ice thickness | 500 m |
+| GLORYS12V1 | Ocean temperature & salinity (4D) | ~8 km |
+| Master Grid | Coordinate reference template | 500 m |
+
+Key EDA findings:
+- 28 raw columns, ~1.3 billion rows
+- Extreme class imbalance: <1% positive rate for `basal_loss_agreement`
+- Ocean features are structurally null for inland pixels (expected)
+- Strong multicollinearity within ocean feature group and GRACE feature group
+
 
 
 *Plots/visualizations appear first, explanations or comments below each*
@@ -108,49 +152,13 @@ This problem requires big data and distributed computing for the following reaso
 
 * Whereas the previous visualization showed ice height change, this just shows the average ice height.  Intuitively, it has been decreasing over time.
 
-<!--  
-### SVD / PCA Results (or corrected_stack)
 
-> **Figure 2.4:
--->
-
-### Model Performance
-
-> **Figure 2.5: [INSERT COMMENT HERE]
-
-> **Figure 2.6: [INSERT COMMENT HERE]
-
-### Predictions
-
-> **Figure 2.7: [INSERT COMMENT HERE]
-
----
-
-## 3. Methods
-[Back to Top](#)
-
-### 3.1 Data Exploration
-
-The Antarctic fused dataset was constructed by spatially joining five satellite products onto a common 500m Antarctic Polar Stereographic (EPSG:3031) grid:
-
-| Dataset | Measures | Resolution |
-|---|---|---|
-| ICESat-2 ATL15 | Ice surface elevation change | 1 km |
-| GRACE/GRACE-FO | Gravitational mass anomaly | ~27 km |
-| Bedmap3 | Sub-surface topography & ice thickness | 500 m |
-| GLORYS12V1 | Ocean temperature & salinity (4D) | ~8 km |
-| Master Grid | Coordinate reference template | 500 m |
-
-Key EDA findings:
-- 28 raw columns, ~1.3 billion rows
-- Extreme class imbalance: <1% positive rate for `basal_loss_agreement`
-- Ocean features are structurally null for inland pixels (expected)
-- Strong multicollinearity within ocean feature group and GRACE feature group
 
 ### 3.2 Preprocessing (using Spark)
 
-**Phase 1: Feature Engineering** (`feature_engineering_pipeline.py`)
+A number of preprocessing steps were performed to create this dataset, since it was fused together from five sources.  For these "pre-pre-processing" details, see [here](https://github.com/scotty-ucsd/dsc232_group_project/tree/Milestone2/pre_pre_processing_pipeline/docs/COMPREHENSIVE_EDA_AND_PREPROCESSING.md).  The following section, in contrast, will focus on the feature engineering, scaling, imputing, and encoding performed after the dataset had been created.
 
+**Phase 1: Feature Engineering** (`feature_engineering_pipeline.py`)
 
 ## Features Engineering
 
@@ -255,6 +263,252 @@ df = df.withColumn("sin_month", F.sin(F.col("month_of_year") * (2*pi/12)))
 ---
 
 
+### Link to Code and Slurm Script for Preprocessing
+[Here](ml_prep/feature_engineering_pipeline.py) is a link to our full code for feature engineering and other preprocessing steps, which is kept in a separate python file and can be run independently via [slurm script](ml_prep/run_fe.sh).
+
+---
+
+
+### 3.3 Model 1: SparkXGBClassifier
+
+Our first model was a SparkXGBClassifier.  We distinguished a baseline and tuned version.  The differences in hyperparameters is shown here:
+
+
+| Hyperparameter | XGB_Baseline | XGB_Tuned |
+|---|---|---|
+| `max_depth` | 4 | 8 |
+| `n_estimators` | 100 | 400 |
+| `learning_rate` | 0.1 | 0.02 |
+| `subsample` | 0.8 | 0.75 |
+| `colsample_bytree` | 0.8 | 0.7 |
+| `min_child_weight` | 10 | 20 |
+| `reg_alpha` | n/a | 0.1 |
+| `reg_lambda` | n/a | 1.0 |
+
+
+The code snippets below show the parameters used and how they were initialized on the SDSC.  Full code available [here]().
+
+
+```
+# Select model to train: "XGB_Baseline" or "XGB_Tuned"
+
+XGB_MODEL = "XGB_Baseline"
+XGB_CONFIGS = {
+    "XGB_Baseline": dict(
+        max_depth=4,
+        n_estimators=50 if MODE == "local" else 100,
+        learning_rate=0.1,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        min_child_weight=10,
+    ),
+    "XGB_Tuned": dict(
+        max_depth=4 if LOCAL else 5,
+        n_estimators=100 if LOCAL else 150,
+        learning_rate=0.05,
+        subsample=0.75,
+        colsample_bytree=0.7,
+        min_child_weight=15 if LOCAL else 20,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
+    ),
+}
+
+
+def init_xgb_models():
+    """SparkXGBClassifier models from XGB_CONFIGS."""
+
+    try:
+        from xgboost.spark import SparkXGBClassifier
+    except ImportError:
+        print("WARNING: xgboost.spark unavailable, using GBT proxy.")
+        return [
+            (name, GBTClassifier(
+                labelCol=LABEL_COL, featuresCol="features", weightCol=WEIGHT_COL,
+                maxIter=cfg.get("n_estimators", 50), maxDepth=cfg["max_depth"],
+                stepSize=cfg["learning_rate"], seed=42))
+            for name, cfg in XGB_CONFIGS.items()
+        ]
+
+    # note: num_workers=2 avoids OOM on barrier-mode XGBoost
+    #       when all executor RAM is consumed by DMatrix allocation.
+    # note: ensure num_workers <= num_executors
+    # note: if num_workers > num_executors, Spark will throw an error
+    # note: for baseline, we might get away with 4-6 workers
+    # note: for tuned, we might need 2-4 workers
+    # note: if we get OOM, reduce num_workers
+    num_workers = 2
+
+    models = []
+    selected = {XGB_MODEL: XGB_CONFIGS[XGB_MODEL]} if XGB_MODEL else XGB_CONFIGS
+    for name, cfg in selected.items():
+        m = SparkXGBClassifier(
+            features_col="features",
+            label_col=LABEL_COL,
+            weight_col=WEIGHT_COL,
+            eval_metric="logloss",
+            use_gpu=False,
+            missing=0.0,
+            num_workers=num_workers,
+            **cfg,
+        )
+        models.append((name, m))
+
+    return models
+
+```
+
+
+
+
+
+
+
+### 3.4 Model 2: Stacked Generalization Ensemble (RF + GBT base learners, Logistic Regression meta-learner)
+
+Our second model was a stacked ensemble using Random Forest and Gradient Boosted Tree as base learners, then Logistic Regression as a meta-learner.  The code snippets below show the initialization of these components and training of the stacked ensemble.  Full code available [here]().
+
+
+```
+
+def init_base_learners():
+    """RF + GBT base learners for stacking."""
+
+    return [
+        ("Base_RF", RandomForestClassifier(
+            labelCol=LABEL_COL, featuresCol="features", weightCol=WEIGHT_COL,
+            predictionCol="rf_prediction", probabilityCol="rf_probability",
+            rawPredictionCol="rf_rawPrediction",
+            featureSubsetStrategy="sqrt", seed=42, **RF_CONFIG)),
+        ("Base_GBT", GBTClassifier(
+            labelCol=LABEL_COL, featuresCol="features", weightCol=WEIGHT_COL,
+            predictionCol="gbt_prediction",
+            seed=42, **GBT_CONFIG)),
+    ]
+
+
+def init_corrected_meta_learners():
+    """LogisticRegression meta-learners for corrected stacking."""
+
+    return [
+        ("CorrStack_LR_Baseline", LogisticRegression(
+            labelCol=LABEL_COL, featuresCol="meta_features", weightCol=WEIGHT_COL,
+            predictionCol=PREDICTION_COL, probabilityCol="probability",
+            rawPredictionCol="rawPrediction",
+            maxIter=50 if LOCAL else 200, regParam=0.01, elasticNetParam=0.0)),
+        ("CorrStack_LR_Tuned", LogisticRegression(
+            labelCol=LABEL_COL, featuresCol="meta_features", weightCol=WEIGHT_COL,
+            predictionCol=PREDICTION_COL, probabilityCol="probability",
+            rawPredictionCol="rawPrediction",
+            maxIter=100 if LOCAL else 500, regParam=0.1, elasticNetParam=0.5)),
+    ]
+
+
+
+def train_corrected_stack(train, val, test):
+
+    """Train corrected stacking ensemble (OOF + pruned + LR)."""
+
+    spark = train.sparkSession
+    preprocess = build_stack_preprocessing(train.columns)
+    pp_model = preprocess.fit(train)
+
+    available_cols = train.columns
+    results = []
+    base_models = {}
+
+    # Flush preprocessed full train (not undersampled) for OOF split
+    train_pp_path = os.path.join(scratch_dir, "_cstack_train_pp")
+    pp_model.transform(train).write.mode("overwrite").parquet(train_pp_path)
+    train_p = spark.read.parquet(train_pp_path)
+
+    # OOF split on flushed data
+    fold_a_raw, fold_b_raw = oof_split(train_p)
+    fold_a = undersample(fold_a_raw).persist(StorageLevel.MEMORY_AND_DISK)
+    fold_a.count()
+
+    # ------------------------------------------------------------------
+    # Layer 1: base learners on fold A
+    # ------------------------------------------------------------------
+    print(f"\n{'='*60}\n  LAYER 1: BASE LEARNERS ON FOLD A\n{'='*60}")
+    for name, clf in init_base_learners():
+        print(f"\n  Training {name}...")
+        fitted = Pipeline(stages=[clf]).fit(fold_a)
+        base_models[name] = fitted
+
+        eval_splits = [
+            ("fold_a", fold_a_raw),
+            ("fold_b", fold_b_raw),
+            ("val", pp_model.transform(val)),
+            ("test", pp_model.transform(test)),
+        ]
+
+        for sname, sdf in eval_splits:
+            p = fitted.transform(sdf)
+            pred_col = "rf_prediction" if "RF" in name else "gbt_prediction"
+            ev = p.withColumn(PREDICTION_COL, F.col(pred_col))
+            if "rf_rawPrediction" in ev.columns:
+                ev = ev.withColumn("rawPrediction", F.col("rf_rawPrediction"))
+            ev = ev.persist(StorageLevel.DISK_ONLY)
+            results.append(evaluate(name, ev, sname))
+            ev.unpersist()
+
+    fold_a.unpersist()
+
+    # ------------------------------------------------------------------
+    # Layer 2: corrected meta-learner on fold B
+    # ------------------------------------------------------------------
+    print(f"\n{'='*60}\n  LAYER 2: LR META-LEARNER ON FOLD B\n{'='*60}")
+
+    def add_base(df):
+        for _, m in base_models.items():
+            df = m.transform(df)
+        return df
+
+    # Persist fold_b meta-features: LR iterates over this many times.
+    # Only ~8 meta dimensions so the footprint is small.
+    fold_b_m = build_pruned_meta_features(add_base(fold_b_raw), available_cols)
+    fold_b_m = fold_b_m.persist(StorageLevel.MEMORY_AND_DISK)
+
+    n_meta = fold_b_m.select("meta_features").head(1)[0]["meta_features"].size
+    print(f"  Meta-features: {n_meta} dimensions (pruned)")
+
+    for name, clf in init_corrected_meta_learners():
+        print(f"\n  Training {name}...")
+        fitted = Pipeline(stages=[clf]).fit(fold_b_m)
+
+        lr = fitted.stages[-1]
+        if hasattr(lr, "coefficients"):
+            coeffs = lr.coefficients.toArray()
+            print(f"    Intercept: {lr.intercept:.4f}")
+            meta_names = (
+                ["rf_pos_prob", "gbt_score", "base_agreement"]
+                + [f"{c}_meta" for c in META_CONTEXT_COLS]
+            )
+            for n, c in zip(meta_names[:len(coeffs)], coeffs):
+                sign = "+" if c >= 0 else "-"
+                print(f"    {n:30s}  {sign}{abs(c):.4f}")
+
+        for sname, raw_df in [("train", train), ("val", val), ("test", test)]:
+            sdf = pp_model.transform(raw_df)
+            p = fitted.transform(
+                build_pruned_meta_features(add_base(sdf), available_cols)
+            )
+            p = p.persist(StorageLevel.DISK_ONLY)
+            results.append(evaluate(name, p, sname))
+            save_predictions(p, name, sname)
+            if sname == "test":
+                regional_summary(p, name)
+            p.unpersist()
+
+    fold_b_m.unpersist()
+
+    return results
+
+```
+
+
+
 <!--  
 **Phase 2: ML Preprocessing**
 
@@ -290,7 +544,9 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 ## 4. Results
 [Back to Top](#)
 
-### 4.1 Model 1: XGBoost
+### 4.1 Model 1: SparkXGBClassifier
+
+Recall from above that we had baseline and tuned versions of this model.
 
 | Model | Split | ROC-AUC | PR-AUC | F1 | Precision | Recall |
 |---|---|---|---|---|---|---|
@@ -302,13 +558,7 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 | **XGB_Tuned** | test | 0.7490 | 0.0900 | 0.9451 | 0.9343 | 0.9608 |
 
 
-### Metric Selection Justification
-
-- **PR-AUC (primary):** With a ~3% positive rate (`rate=0.030064` in train), ROC-AUC is **inflated by the massive true-negative count**. PR-AUC directly measures the precision-recall trade-off for the rare positive class. A PR-AUC of 0.09 is more honest than a ROC-AUC of 0.74: it says the model finds very few true positives without false alarms.
-- **ROC-AUC:** Used for overfitting diagnosis (train-test gap) but misleading as a standalone quality metric for imbalanced problems.
-- **F1, Precision, Recall:** Complement threshold-dependent analysis. The high F1/Precision/Recall on val/test are artifacts of the majority-class dominance at the default 0.5 threshold.
-
-### Ground Truth vs. Predictions (Regional Breakdown)
+### Predictions vs. Ground Truth (Regional Breakdown)
 
 **XGB_Baseline: Test Set:**
 
@@ -321,9 +571,8 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 | ross | 0.0011 | 0.0440 | 34,371,219 |
 | totten_and_aurora | 0.0010 | 0.0312 | 15,988,044 |
 
-> **Critical failure in Amundsen Sea:** The model predicts a 0.29% positive rate against a true rate of 11.55%: a **40x underestimation** of the most rapidly melting region in Antarctica. The model appears to have learned that "most pixels are negative" and fails to flag the high-loss region. This is the most scientifically important region and must be addressed in Milestone 4.
 
----
+
 
 ### 4.2 Model 2: Stacked Generalization Ensemble (RF + GBT base learners, Logistic Regression meta-learner)
 
@@ -351,6 +600,7 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 | SVD_GBT | test | `[PLACEHOLDER]` | `[PLACEHOLDER]` | `[PLACEHOLDER]` |
 -->
 
+<!--
 ### 4.3 Model Comparison
 
 | Metric | XGB (full) | SVD_GBT (20 PCs) | Physics Baseline |
@@ -369,14 +619,31 @@ Temporal train/val/test split: Apr 2020 – Dec 2022 (train), Jan – Oct 2023 (
 | **Actual Negative** | `[PLACEHOLDER]` | `[PLACEHOLDER]` |
 
 ---
+-->
 
 ## 5. Discussion
 [Back to Top](#)
 
+
+### Metric Selection Justification
+
+- **PR-AUC (primary):** With a ~3% positive rate (`rate=0.030064` in train), ROC-AUC is **inflated by the massive true-negative count**. PR-AUC directly measures the precision-recall trade-off for the rare positive class. A PR-AUC of 0.09 is more honest than a ROC-AUC of 0.74: it says the model finds very few true positives without false alarms.
+- **ROC-AUC:** Used for overfitting diagnosis (train-test gap) but misleading as a standalone quality metric for imbalanced problems.
+- **F1, Precision, Recall:** Complement threshold-dependent analysis. The high F1/Precision/Recall on val/test are artifacts of the majority-class dominance at the default 0.5 threshold
+
+
+
 ### 5.1 Model 1 Interpretation
 
+The baseline version of the XGB Regressor seemed to learn that "most pixels are negative", so no ice-loss, and thus failed to flag the changes in the Amundsen Sea, a high-loss region (see Results above, Predictions vs. Ground Truth).  The model predicted a 0.29% positive rate against a true rate of 11.55%, a **40x underestimation** of the most rapidly melting region in Antarctica. 
 
-**Both models are OVERFITTING:**
+The rationale for different parameters in the tuned version was as follows:
+- **Lower learning rate (0.02) + more trees (400):** Slower, more incremental gradient steps for finer convergence.
+- **Higher `min_child_weight` (20):** Requires more samples per leaf $\rightarrow$ reduces overfitting to small clusters.
+- **L1/L2 regularisation added:** `reg_alpha=0.1` (L1) and `reg_lambda=1.0` (L2) explicitly penalise complexity.
+- **Lower `subsample` and `colsample_bytree`:** More aggressive bagging $\rightarrow$ reduces variance.
+
+However, both versions of the XGB Regressor still overfitted the data:
 
 ```
 XGB_Baseline:
@@ -392,38 +659,21 @@ XGB_Tuned:
   $\rightarrow$ OVERFITTING
 ```
 
-The ~19% ROC-AUC gap between train and test is a clear overfitting signal. The model memorises training patterns (especially after undersampling alters the class distribution) that do not generalise to the temporal hold-out.
 
-**Why overfitting occurs:**
+
+The ~19% ROC-AUC gap between train and test was a clear overfitting signal. The model memorized training patterns (especially after undersampling alters the class distribution) that do not generalise to the temporal hold-out.
+
+The tuned version achieved marginally better test ROC-AUC (0.749 vs 0.740) but **worse test PR-AUC** (0.090 vs 0.091). The overfitting gap actually *increased* slightly (0.193 vs 0.190). The tuned hyperparameters successfully increased train performance but the regularisation was insufficient to close the generalisation gap.
+
+The baseline version was marginally better on the metric that matters (PR-AUC: 0.091 vs 0.090), despite worse ROC-AUC. The tuned model's deeper trees and more iterations increased memorisation without improving rare-event detection. For a geoscience application where false negatives in Amundsen Sea cost real predictive value, neither model is adequate.
+
+Despite further tuning, the current [XGB_CONFIGS](https://github.com/scotty-ucsd/dsc232_group_project/blob/Milestone3/ml_prep/ml_pipeline.py#L212) still produce similar overfitting patterns.
+
+We hypothesized a number of reasons why this overfitting occurred:
 1. **Temporal distribution shift:** Training data (Apr 2020 – Dec 2022) does not contain the climatic patterns present in the test period (post-Oct 2023). Ice-sheet dynamics are non-stationary.
 2. **Undersampling artefact:** The 1:10 ratio amplifies positive examples, which the model can memorise since many are spatially clustered in a few glaciers.
 3. **High model capacity:** `max_depth=4-8`, 100–400 trees is sufficient capacity to overfit spatial patterns.
 
-
-| Hyperparameter | XGB_Baseline | XGB_Tuned |
-|---|---|---|
-| `max_depth` | 4 | 8 |
-| `n_estimators` | 100 | 400 |
-| `learning_rate` | 0.1 | 0.02 |
-| `subsample` | 0.8 | 0.75 |
-| `colsample_bytree` | 0.8 | 0.7 |
-| `min_child_weight` | 10 | 20 |
-| `reg_alpha` | n/a | 0.1 |
-| `reg_lambda` | n/a | 1.0 |
-
-**Key differences in tuning rationale:**
-- **Lower learning rate (0.02) + more trees (400):** Slower, more incremental gradient steps for finer convergence.
-- **Higher `min_child_weight` (20):** Requires more samples per leaf $\rightarrow$ reduces overfitting to small clusters.
-- **L1/L2 regularisation added:** `reg_alpha=0.1` (L1) and `reg_lambda=1.0` (L2) explicitly penalise complexity.
-- **Lower `subsample` and `colsample_bytree`:** More aggressive bagging $\rightarrow$ reduces variance.
-
-**Result:** XGB_Tuned achieves marginally better test ROC-AUC (0.749 vs 0.740) but **worse test PR-AUC** (0.090 vs 0.091). The overfitting gap actually *increased* slightly (0.193 vs 0.190). The tuned hyperparameters successfully increased train performance but the regularisation was insufficient to close the generalisation gap.
-
-* **Note on the current [XGB_CONFIGS](https://github.com/scotty-ucsd/dsc232_group_project/blob/Milestone3/ml_prep/ml_pipeline.py#L212):** Both produced similar overfitting patterns.
-
-#### Which Model Performs Best?
-
-**XGB_Baseline is marginally better** on the metric that matters (PR-AUC: 0.091 vs 0.090), despite worse ROC-AUC. The tuned model's deeper trees and more iterations increased memorisation without improving rare-event detection. For a geoscience application where false negatives in Amundsen Sea cost real predictive value, neither model is adequate.
 
 
 ### 5.2 Model 2 Interpretation
