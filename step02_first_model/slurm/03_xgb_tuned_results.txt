@@ -1,0 +1,183 @@
+======================================================
+ Job ID        : 47396549
+ Node          : exp-6-13
+ CPUs          : 32
+ Start         : Sun Mar 15 04:15:00 PDT 2026
+ Python script : ml_pipeline_xgb.py
+======================================================
+Spark UI is running on: exp-6-13
+[spark] JVM max heap: 80.0 GB | parallelism: 24
+
+============================================================
+  DATA LOADING
+============================================================
+[load] 72 columns from /expanse/lustre/projects/uci157/rrogers/data/ml_ready_unified
+  train:  199,191,383 rows, pos=5,860,330, rate=0.029421
+  val  :   72,431,730 rows, pos=1,704,504, rate=0.023533
+  test :  126,716,756 rows, pos=5,193,607, rate=0.040986
+
+============================================================
+  TRAINING: XGBOOST
+============================================================
+[xgb] Checkpointing raw train split to disk...
+[xgb] Raw train checkpoint complete.
+  [undersample] totten_and_aurora: pos=393,796 (100%) | neg=24,746,821 -> 1,968,202 (1:4)
+  [undersample] amundsen_sea: pos=16,902 (100%) | neg=17,060,108 -> 84,911 (1:5)
+  [undersample] ross: pos=1,325,559 (100%) | neg=52,665,500 -> 15,904,637 (1:11)
+  [undersample] ronne: pos=1,266,002 (100%) | neg=36,009,157 -> 15,193,172 (1:12)
+  [undersample] antarctic_peninsula: pos=1,456,037 (100%) | neg=21,464,910 -> 11,648,407 (1:8)
+  [undersample] lambert_amery: pos=1,402,034 (100%) | neg=41,384,557 -> 16,820,445 (1:11)
+[undersample] Checkpointing balanced set...
+[undersample] Complete: 67,480,104 rows
+[preprocess:xgb] 64 numeric + Bucketizer + OHE + MinMaxScaler
+[xgb] Fitting preprocessor on undersampled data...
+[xgb] Preprocessor fit complete.
+[xgb] Transforming and writing preprocessed data...
+[xgb] Preprocessed training data written.
+[xgb] Training data ready: 67,480,104 rows | columns: ['features', 'basal_loss_agreement', 'weightCol']
+
+============================================================
+  TRAINING: XGB_Tuned
+============================================================
+  [XGB_Tuned] train    ROC=0.9960  PR=0.9484  F1=0.9523  Prec=0.9670  Rec=0.9469
+  [XGB_Tuned] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_XGB_Tuned_train
+  [XGB_Tuned] val      ROC=0.9792  PR=0.4429  F1=0.9658  Prec=0.9795  Rec=0.9573
+  [XGB_Tuned] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_XGB_Tuned_val
+
+  [XGB_Tuned] Threshold calibration on val:
+     Threshold  Precision     Recall         F1
+          0.05     0.2144     0.9999     0.3530
+          0.10     0.2624     0.9946     0.4152
+          0.15     0.2775     0.9887     0.4333
+          0.20     0.2886     0.9420     0.4418
+          0.25     0.3003     0.9346     0.4546
+          0.30     0.3100     0.9240     0.4643
+          0.40     0.3297     0.8983     0.4824
+          0.50     0.3316     0.8036     0.4695
+  Best threshold: 0.40 (F1=0.4824)
+  [XGB_Tuned] test     ROC=0.9676  PR=0.5035  F1=0.9585  Prec=0.9680  Rec=0.9527
+  [XGB_Tuned] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_XGB_Tuned_test
+
+  [XGB_Tuned] Threshold calibration on test:
+     Threshold  Precision     Recall         F1
+          0.05     0.3395     0.9870     0.5053
+          0.10     0.4394     0.9832     0.6074
+          0.15     0.4563     0.9724     0.6211
+          0.20     0.4488     0.9137     0.6019
+          0.25     0.4538     0.8997     0.6033
+          0.30     0.4541     0.8810     0.5993
+          0.40     0.4572     0.8431     0.5929
+          0.50     0.4549     0.7721     0.5725
+  Best threshold: 0.15 (F1=0.6211)
+
+  [XGB_Tuned] Regional breakdown:
+    amundsen_sea               pred=0.0735  true=0.1276  n=10,869,309
+    antarctic_peninsula        pred=0.0839  true=0.0151  n=14,578,163
+    lambert_amery              pred=0.0907  true=0.0236  n=27,227,872
+    ronne                      pred=0.0395  true=0.0146  n=23,682,149
+    ross                       pred=0.0684  true=0.0371  n=34,371,219
+    totten_and_aurora          pred=0.0650  true=0.0827  n=15,988,044
+
+========================================================================
+  RESULTS SUMMARY
+========================================================================
+  Model                     Split    ROC-AUC   PR-AUC       F1     Prec      Rec
+  ----------------------------------------------------------------------
+  XGB_Tuned                 train     0.9960   0.9484   0.9523   0.9670   0.9469
+  XGB_Tuned                 val       0.9792   0.4429   0.9658   0.9795   0.9573
+  XGB_Tuned                 test      0.9676   0.5035   0.9585   0.9680   0.9527
+========================================================================
+
+========================================================================
+  FITTING ANALYSIS
+========================================================================
+
+  XGB_Tuned:
+    Train ROC-AUC: 0.9960
+    Test  ROC-AUC: 0.9676  (gap: 0.0285)
+    Test  PR-AUC:  0.5035
+    -> GOOD FIT
+========================================================================
+
+============================================================
+  ERROR ANALYSIS PLOTS
+============================================================
+  [XGB_Tuned] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/XGB_Tuned_geo_errors.png
+  [XGB_Tuned] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/XGB_Tuned_regional_errors.png
+  [XGB_Tuned] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/XGB_Tuned_temporal_residuals.png
+
+============================================================
+  PHYSICS BASELINE
+============================================================
+  [Physics_Threshold] test     ROC=0.4992  PR=0.0394  F1=0.9304  Prec=0.9212  Rec=0.9401
+
+  [Physics_Threshold] Regional breakdown:
+    amundsen_sea               pred=0.0185  true=0.1276  n=10,869,309
+    antarctic_peninsula        pred=0.0660  true=0.0151  n=14,578,163
+    lambert_amery              pred=0.0001  true=0.0236  n=27,227,872
+    ronne                      pred=0.0141  true=0.0146  n=23,682,149
+    ross                       pred=0.0317  true=0.0371  n=34,371,219
+    totten_and_aurora          pred=0.0002  true=0.0827  n=15,988,044
+
+========================================================================
+  RESULTS SUMMARY
+========================================================================
+  Model                     Split    ROC-AUC   PR-AUC       F1     Prec      Rec
+  ----------------------------------------------------------------------
+  XGB_Tuned                 train     0.9960   0.9484   0.9523   0.9670   0.9469
+  XGB_Tuned                 val       0.9792   0.4429   0.9658   0.9795   0.9573
+  XGB_Tuned                 test      0.9676   0.5035   0.9585   0.9680   0.9527
+  Physics_Threshold         test      0.4992   0.0394   0.9304   0.9212   0.9401
+========================================================================
+
+========================================================================
+  FITTING ANALYSIS
+========================================================================
+
+  Physics_Threshold: insufficient data.
+
+  XGB_Tuned:
+    Train ROC-AUC: 0.9960
+    Test  ROC-AUC: 0.9676  (gap: 0.0285)
+    Test  PR-AUC:  0.5035
+    -> GOOD FIT
+========================================================================
+
+========================================================================
+  CONCLUSION
+========================================================================
+
+  1. MODEL SUMMARY:
+     - Classic (Model 1): DT -> RF -> GBT progression with
+       PolynomialExpansion, Ocean PCA, and StandardScaler. Demonstrates
+       MLlib transformer breadth and natural complexity progression.
+     - XGBoost (Model 2): SparkXGBClassifier with MinMaxScaler,
+       Bucketizer, hand-crafted physics interactions, 6-month temporal
+       memory.  Best for capturing threshold-like physics.
+     - Stacking (Model 3): RF+GBT base learners, XGBoost meta-learner.
+       Learns WHERE each base model is reliable.
+     - Corrected Stacking (Model 4): OOF training, pruned meta-features,
+       LogisticRegression.  Fixes severe overfitting from Model 3.
+
+  2. UNDERSAMPLING IMPACT:
+     Training on balanced data (1:10 ratio) forces
+     the model to attend to rare positive events rather than achieving
+     high accuracy by always predicting negative.
+
+  3. PR-AUC AS PRIMARY METRIC:
+     With <1% positive rate, ROC-AUC can be misleadingly high.
+     PR-AUC directly measures how well the model finds true positives
+     without drowning in false alarms.
+
+  4. HOW DISTRIBUTED COMPUTING HELPED:
+     - Spark distributes histogram construction for XGBoost/GBT
+     - RF tree building parallelised across executors
+     - Feature engineering (window functions) partitioned by pixel
+     - 40 GB dataset impossible on single machine; 6 executors
+       reduce training from hours to minutes
+========================================================================
+
+======================================================
+ End           : Sun Mar 15 05:49:08 PDT 2026
+ Exit code     : 0
+======================================================
