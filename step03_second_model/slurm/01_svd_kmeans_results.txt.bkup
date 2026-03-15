@@ -1,0 +1,289 @@
+======================================================
+ Job ID        : 47351698
+ Node          : exp-1-11
+ CPUs          : 32
+ Start         : Sat Mar 14 16:48:23 PDT 2026
+ Python script : ml_pipeline_svd_kmeans.py
+======================================================
+Spark UI is running on: exp-1-11
+[spark] JVM max heap: 80.0 GB | parallelism: 24
+
+============================================================
+  STAGE 1: DATA LOADING
+============================================================
+[load] 72 columns from /expanse/lustre/projects/uci157/rrogers/data/ml_ready_unified
+  train:  199,191,383 rows, pos=5,860,330, rate=0.029421
+  val  :   72,431,730 rows, pos=1,704,504, rate=0.023533
+  test :  126,716,756 rows, pos=5,193,607, rate=0.040986
+
+============================================================
+  STAGE 2: TRIM TO 20 CLEAN FEATURES
+============================================================
+  [trim] Kept 20/20 clean features + 4 meta + 2 target cols = 25 total columns.
+  [trim] Kept 20/20 clean features + 4 meta + 2 target cols = 25 total columns.
+  [trim] Kept 20/20 clean features + 4 meta + 2 target cols = 25 total columns.
+
+============================================================
+  STAGE 3: CHECKPOINT RAW TRAIN
+============================================================
+  Checkpointed → /expanse/lustre/projects/uci157/rrogers/temp/_svd_train_raw
+
+============================================================
+  STAGE 4: REGIONAL WEIGHTS
+============================================================
+
+============================================================
+  STAGE 5-6: REGIONAL RESIDUALIZATION
+============================================================
+
+============================================================
+  STAGE 7: LAG FEATURES
+============================================================
+  [lag] Added 4 lag features: ['thetao_mo_lag1', 'thetao_mo_lag3', 't_star_mo_lag1', 't_star_mo_lag3']
+  [lag] Added 4 lag features: ['thetao_mo_lag1', 'thetao_mo_lag3', 't_star_mo_lag1', 't_star_mo_lag3']
+  [lag] Added 4 lag features: ['thetao_mo_lag1', 'thetao_mo_lag3', 't_star_mo_lag1', 't_star_mo_lag3']
+
+============================================================
+  STAGE 8: ENGINEERED FEATURES
+============================================================
+  [engineer] Added 4 engineered features: ['thermal_driving', 't_star_anomaly', 'sin_month', 'cos_month']
+  [engineer] Added 4 engineered features: ['thermal_driving', 't_star_anomaly', 'sin_month', 'cos_month']
+  [engineer] Added 4 engineered features: ['thermal_driving', 't_star_anomaly', 'sin_month', 'cos_month']
+
+============================================================
+  STAGE 9: CHECKPOINT RESIDUALIZED SPLITS
+============================================================
+
+============================================================
+  STAGE 10: UNDERSAMPLE MAJORITY CLASS
+============================================================
+  [undersample] antarctic_peninsula: pos=1,456,037 (100%) | neg=21,464,910 -> 11,646,090 (1:7)
+  [undersample] ross: pos=1,325,559 (100%) | neg=52,665,500 -> 15,905,781 (1:11)
+  [undersample] lambert_amery: pos=1,402,034 (100%) | neg=41,384,557 -> 16,826,608 (1:12)
+  [undersample] totten_and_aurora: pos=393,796 (100%) | neg=24,746,821 -> 1,966,230 (1:4)
+  [undersample] ronne: pos=1,266,002 (100%) | neg=36,009,157 -> 15,192,937 (1:12)
+  [undersample] amundsen_sea: pos=16,902 (100%) | neg=17,060,108 -> 84,633 (1:5)
+[undersample] Checkpointing balanced set...
+[undersample] Complete: 67,482,609 rows
+
+============================================================
+  STAGE 11: FIT PREPROCESSING PIPELINE
+============================================================
+  [preprocess] 27 features → Imputer → Assembler → StandardScaler(withMean=False)
+
+============================================================
+  STAGE 12: ROWMATRIX.COMPUTESVD (k=15)
+============================================================
+  [SVD] Running RowMatrix.computeSVD(k=15, computeU=False)...
+  [SVD] Top-5 singular values : [258102.1605  24858.2435  13519.225   12096.1315  10014.0829]
+  [SVD] NOTE: Explained variance ratios come from PCA model (correct [0,1] scale — same Lanczos algorithm).
+
+============================================================
+  STAGE 13: PCA PROJECTION
+============================================================
+  [PCA] Fitting PCA(k=15) on training data...
+  [PCA] Explained variance (top 5): [0.3545 0.1043 0.0853 0.0667 0.0547]
+  [PCA] Cumulative at k=15: 0.9764
+
+============================================================
+  STAGE 14: CHECKPOINT PROJECTED SPLITS
+============================================================
+  Saved train → /expanse/lustre/projects/uci157/rrogers/temp/_svd_train_projected
+  Saved val → /expanse/lustre/projects/uci157/rrogers/temp/_svd_val_projected
+  Saved test → /expanse/lustre/projects/uci157/rrogers/temp/_svd_test_projected
+
+============================================================
+  EIGENVALUE ANALYSIS
+============================================================
+  [SVD] Eigenvalue plot → /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_eigenvalue_analysis.png
+
+============================================================
+  STAGE 15: KMEANS CLUSTERING
+============================================================
+
+  [KMeans] Silhouette sweep...
+    k=4: silhouette=0.1579
+    k=6: silhouette=0.1818
+    k=8: silhouette=0.2356
+    k=10: silhouette=0.2107
+  [KMeans] Best k=8 (sil=0.2356).
+
+  [SVD_KMeans] Cluster breakdown (k=8):
+    cluster=0: n=  11,867,331  pos_rate=0.086839
+    cluster=1: n=   2,926,001  pos_rate=0.131415
+    cluster=2: n=  20,579,089  pos_rate=0.118974
+    cluster=3: n=  24,107,108  pos_rate=0.046447
+    cluster=4: n=   1,489,960  pos_rate=0.097444
+    cluster=5: n=     805,990  pos_rate=0.089889
+    cluster=6: n=   5,677,028  pos_rate=0.115476
+    cluster=7: n=      30,102  pos_rate=0.132250
+
+  [SVD_KMeans] Cluster × Region:
+    cluster=0  amundsen_sea               n=     8,120
+    cluster=0  antarctic_peninsula        n= 4,595,895
+    cluster=0  lambert_amery              n= 3,877,602
+    cluster=0  ronne                      n= 1,613,111
+    cluster=0  ross                       n= 1,514,565
+    cluster=0  totten_and_aurora          n=   258,038
+    cluster=1  amundsen_sea               n=       417
+    cluster=1  antarctic_peninsula        n=   810,215
+    cluster=1  lambert_amery              n=    10,994
+    cluster=1  ronne                      n=    54,772
+    cluster=1  ross                       n= 2,049,027
+    cluster=1  totten_and_aurora          n=       576
+    cluster=2  amundsen_sea               n=    18,330
+    cluster=2  antarctic_peninsula        n= 6,225,056
+    cluster=2  lambert_amery              n= 2,823,947
+    cluster=2  ronne                      n= 7,024,550
+    cluster=2  ross                       n= 4,132,005
+    cluster=2  totten_and_aurora          n=   355,201
+    cluster=3  amundsen_sea               n=    73,193
+    cluster=3  antarctic_peninsula        n=   300,210
+    cluster=3  lambert_amery              n=11,147,665
+    cluster=3  ronne                      n= 3,608,567
+    cluster=3  ross                       n= 7,250,263
+    cluster=3  totten_and_aurora          n= 1,727,210
+    cluster=4  amundsen_sea               n=       871
+    cluster=4  antarctic_peninsula        n=   212,915
+    cluster=4  lambert_amery              n=     5,451
+    cluster=4  ronne                      n=    75,181
+    cluster=4  ross                       n= 1,195,289
+    cluster=4  totten_and_aurora          n=       253
+    cluster=5  amundsen_sea               n=       203
+    cluster=5  antarctic_peninsula        n=   486,880
+    cluster=5  lambert_amery              n=       347
+    cluster=5  ronne                      n=        15
+    cluster=5  ross                       n=   318,510
+    cluster=5  totten_and_aurora          n=        35
+    cluster=6  amundsen_sea               n=       374
+    cluster=6  antarctic_peninsula        n=   454,702
+    cluster=6  lambert_amery              n=   362,153
+    cluster=6  ronne                      n= 4,081,109
+    cluster=6  ross                       n=   760,291
+    cluster=6  totten_and_aurora          n=    18,399
+    cluster=7  amundsen_sea               n=        27
+    cluster=7  antarctic_peninsula        n=    16,254
+    cluster=7  lambert_amery              n=       483
+    cluster=7  ronne                      n=     1,634
+    cluster=7  ross                       n=    11,390
+    cluster=7  totten_and_aurora          n=       314
+  [SVD_KMeans] Cluster scatter → /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_KMeans_cluster_scatter.png
+  [SVD_KMeans] Label scatter → /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_KMeans_label_scatter.png
+
+============================================================
+  STAGE 15b: APPEND CLUSTER FEATURE
+============================================================
+  [cluster_feat] xgb_features = 15 SVD PCs + cluster_id = 16 dims
+  [cluster_feat] xgb_features = 15 SVD PCs + cluster_id = 16 dims
+  [cluster_feat] xgb_features = 15 SVD PCs + cluster_id = 16 dims
+
+============================================================
+  STAGE 16-18: SUPERVISED MODEL (SVD_XGB)
+============================================================
+  [XGB] N_neg=61,622,279  N_pos=5,860,330  scale_pos_weight=10.52 (cap=15.0)
+
+============================================================
+  TRAINING: SVD_XGB
+============================================================
+  [threshold] Optimal t=0.64, F2=0.1132
+  [threshold] Using t=0.64 (Amundsen override=0.35)
+  [SVD_XGB] train    ROC=0.8054  PR=0.2845  F1=0.1813  Prec=0.9211  Rec=0.1782
+  [SVD_XGB] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_SVD_XGB_train
+  [SVD_XGB] val      ROC=0.5162  PR=0.0232  F1=0.3170  Prec=0.9619  Rec=0.2095
+  [SVD_XGB] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_SVD_XGB_val
+  [SVD_XGB] test     ROC=0.5894  PR=0.0830  F1=0.2397  Prec=0.9302  Rec=0.1719
+  [SVD_XGB] Saved -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/preds_SVD_XGB_test
+
+  [SVD_XGB] Regional breakdown:
+    amundsen_sea               pred=0.8361  true=0.1276  n=10,869,309
+    antarctic_peninsula        pred=0.8342  true=0.0151  n=14,578,163
+    lambert_amery              pred=0.9487  true=0.0236  n=27,227,872
+    ronne                      pred=0.8165  true=0.0146  n=23,682,149
+    ross                       pred=0.8390  true=0.0371  n=34,371,219
+    totten_and_aurora          pred=0.8593  true=0.0827  n=15,988,044
+
+============================================================
+  REGIONAL BREAKDOWN: SVD_XGB
+============================================================
+  Region                           PR-AUC      TPR      FPR       N+
+  amundsen_sea                     0.1591   0.7597   0.8473  1386753 ◄ AMUNDSEN
+  antarctic_peninsula              0.0336   0.9120   0.8330   219463
+  lambert_amery                    0.0227   0.9830   0.9478   643730
+  ronne                            0.0123   0.8511   0.8160   346684
+  ross                             0.0435   0.9066   0.8364  1274973
+  totten_and_aurora                0.2113   0.9764   0.8487  1322004
+
+  Amundsen Sea TPR: 0.7597 → ✅ PASS
+  [SVD_XGB] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_XGB_geo_errors.png
+  [SVD_XGB] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_XGB_regional_errors.png
+  [SVD_XGB] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_XGB_errors_only.png
+  [SVD_XGB] -> /expanse/lustre/projects/uci157/rrogers/dataunified_output/SVD_XGB_temporal_residuals.png
+
+============================================================
+  STAGE 19: PREDICTIONS ANALYSIS
+============================================================
+
+============================================================
+  PREDICTIONS ANALYSIS: SVD_XGB
+============================================================
+
+  True Positives  (correct melt detection):
+    region=ross, month=24289, truth=1, pred=1.0
+    region=ross, month=24292, truth=1, pred=1.0
+    region=ross, month=24295, truth=1, pred=1.0
+    region=ross, month=24298, truth=1, pred=1.0
+    region=ross, month=24300, truth=1, pred=1.0
+
+  False Positives (false alarm):
+    region=ross, month=24304, truth=0, pred=1.0
+    region=ross, month=24307, truth=0, pred=1.0
+    region=ross, month=24289, truth=0, pred=1.0
+    region=ross, month=24292, truth=0, pred=1.0
+    region=ross, month=24295, truth=0, pred=1.0
+
+  False Negatives (missed melt event):
+    region=ross, month=24298, truth=1, pred=0.0
+    region=ross, month=24298, truth=1, pred=0.0
+    region=ross, month=24298, truth=1, pred=0.0
+    region=ross, month=24298, truth=1, pred=0.0
+    region=ross, month=24298, truth=1, pred=0.0
+
+  Confusion Matrix (total=126,716,756):
+    TP= 4,628,213  FP=104,364,733
+    FN=   565,394  TN=17,158,416
+  Precision (manual): 0.0425
+  Recall    (manual): 0.8911
+
+========================================================================
+  RESULTS SUMMARY
+========================================================================
+  Model                     Split    ROC-AUC   PR-AUC       F1     Prec      Rec
+  ----------------------------------------------------------------------
+  SVD_XGB                   train     0.8054   0.2845   0.1813   0.9211   0.1782
+  SVD_XGB                   val       0.5162   0.0232   0.3170   0.9619   0.2095
+  SVD_XGB                   test      0.5894   0.0830   0.2397   0.9302   0.1719
+========================================================================
+
+========================================================================
+  FITTING ANALYSIS
+========================================================================
+
+  SVD_XGB:
+    Train ROC-AUC: 0.8054
+    Test  ROC-AUC: 0.5894  (gap: 0.2159)
+    Test  PR-AUC:  0.0830
+    -> OVERFITTING
+========================================================================
+
+============================================================
+  SVD + KMEANS + XGB PIPELINE COMPLETE
+============================================================
+  SVD components retained : 15
+  PCA cumulative variance : 0.9764
+  KMeans k (best)         : 8
+  KMeans silhouette       : 0.2356
+  Optimal threshold       : 0.64
+======================================================
+ End           : Sat Mar 14 18:11:59 PDT 2026
+ Exit code     : 0
+======================================================
