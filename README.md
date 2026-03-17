@@ -48,7 +48,7 @@ We fuse five heterogeneous satellite datasets -- ICESat-2 laser altimetry, GRACE
 
 This problem requires big data and distributed computing for three fundamental reasons.
 
-**Data Volume.** Our fused spatiotemporal dataset comprises 1,386,866,499 rows x 28+ columns, representing over 38.8 billion unique observations spanning 2019 to 2025. The compressed Parquet footprint is approximately 40 GB. When uncompressed and loaded into memory for matrix operations, this data volume easily triples RAM usage compared to a local environment.
+**Data Volume.** Our fused spatiotemporal dataset comprises 1,386,866,499 rows x 28+ columns, representing over 38.8 billion unique observations spanning 2020 to 2025. The compressed Parquet footprint is approximately 40 GB. When uncompressed and loaded into memory for matrix operations, this data volume easily triples RAM usage compared to a local environment.
 
 **Feature Engineering at Scale.** Computing per-pixel temporal features requires window operations partitioned by spatial coordinates. Roughly 2 million unique pixels spanning several years generates billions of evaluations that must be distributed across executors. The lag feature engineering pipeline alone generates around 14 GB of shuffle data per phase. Without Spark's shuffle architecture and disk spill capability, the processing would require manual batch management.
 
