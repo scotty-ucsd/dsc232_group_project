@@ -9,7 +9,7 @@
     <strong>Hans Hanson</strong> (Analysis &amp; Writeup)
   </p>
 
-  <img src="imgs/antarctica_eda_images_for_header.png" alt="Antarctica EDA Header" width="800"/>
+  <img src="step04_final_report/imgs/antarctica_eda_images_for_header.png" alt="Antarctica EDA Header" width="800"/>
 
   <div>
     <img src="https://img.shields.io/badge/Apache_Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white" />
@@ -23,12 +23,12 @@
 ---
 
 <p align="center">
-  <a href="#1-introduction">Introduction</a> |
-  <a href="#2-methods">Methods</a> |
-  <a href="#3-results">Results</a> |
-  <a href="#4-discussion">Discussion</a> |
-  <a href="#5-conclusion">Conclusion</a> |
-  <a href="#6-statement-of-collaboration">Collaboration</a>
+  <a href="#1-introduction" style="font-size: 16px;">Introduction</a> |
+  <a href="#2-methods" style="font-size: 16px;">Methods</a> |
+  <a href="#3-results" style="font-size: 16px;">Results</a> |
+  <a href="#4-discussion" style="font-size: 16px;">Discussion</a> |
+  <a href="#5-conclusion" style="font-size: 16px;">Conclusion</a> |
+  <a href="#6-statement-of-collaboration" style="font-size: 16px;">Collaboration</a>
 </p>
 
 ---
@@ -80,6 +80,8 @@ The Antarctic fused dataset was constructed by spatially joining five satellite 
 | Bedmap3 | Sub-surface topography and ice thickness | 500 m |
 | GLORYS12V1 | Ocean temperature and salinity (4D) | ~8 km |
 | Master Grid | Coordinate reference template | 500 m |
+
+For details on fusing these datasets and the consequent "pre-pre-processing," see [here](step00_dataset_synthesis/step00_data_synthesis_README.md).
 
 Key EDA findings from distributed Spark operations (`df.count()`, `df.describe()`, `groupBy().agg()`, `distinct().count()`):
 
@@ -325,8 +327,11 @@ clf = SparkXGBClassifier(
 )
 ```
 
-Full code: [`step02_first_model/slurm/ml_pipeline_xgb.py`](step02_first_model/slurm/ml_pipeline_xgb.py)
-SLURM script: [`step02_first_model/slurm/run_xgb.sh`](step02_first_model/slurm/run_xgb.sh)
+Full code for baseline version: [`step02_first_model/slurm/02_xgb_baseline.py`](step02_first_model/slurm/02_xgb_baseline.py)
+SLURM script for baseline version: [`step02_first_model/slurm/02_run_xgb_baseline.sh`](step02_first_model/slurm/02_run_xgb_baseline.sh)
+
+Full code for tuned version: [`step02_first_model/slurm/03_xgb_tuned.py`](step02_first_model/slurm/03_xgb_tuned.py)
+SLURM script for tuned version: [`step02_first_model/slurm/03_run_xgb_tuned.sh`](step02_first_model/slurm/03_run_xgb_tuned.sh)
 
 ---
 
@@ -384,8 +389,8 @@ for t in np.arange(0.10, 0.96, 0.02):
     fb = (1 + 4) * prec * rec / (4 * prec + rec + 1e-9)  # F2-score
 ```
 
-Full code: [`step03_second_model/slurm/ml_pipeline_svd_kmeans.py`](step03_second_model/slurm/ml_pipeline_svd_kmeans.py)
-SLURM script: [`step03_second_model/slurm/run_svd_kmeans.sh`](step03_second_model/slurm/run_svd_kmeans.sh)
+Full code: [`step03_second_model/slurm/01_svd_kmeans.py`](step03_second_model/slurm/01_svd_kmeans.py)
+SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_model/slurm/01_run_svd_kmeans.sh)
 
 ---
 
@@ -428,27 +433,27 @@ SLURM script: [`step03_second_model/slurm/run_svd_kmeans.sh`](step03_second_mode
 
 **Figure 12: XGB Baseline -- Geographic Errors**
 
-![XGB Baseline Geo Errors](imgs/XGB_Baseline_geo_errors.png)
+![XGB Baseline Geo Errors](step04_final_report/imgs/XGB_Baseline_geo_errors.png)
 
 **Figure 13: XGB Baseline -- Regional Error Rates**
 
-![XGB Baseline Regional](imgs/XGB_Baseline_regional_errors.png)
+![XGB Baseline Regional](step04_final_report/imgs/XGB_Baseline_regional_errors.png)
 
 **Figure 14: XGB Baseline -- Temporal Error Rates**
 
-![XGB Baseline Temporal](imgs/XGB_Baseline_temporal_residuals.png)
+![XGB Baseline Temporal](step04_final_report/imgs/XGB_Baseline_temporal_residuals.png)
 
 **Figure 15: XGB Tuned -- Geographic Errors**
 
-![XGB Tuned Geo Errors](imgs/XGB_Tuned_geo_errors.png)
+![XGB Tuned Geo Errors](step04_final_report/imgs/XGB_Tuned_geo_errors.png)
 
 **Figure 16: XGB Tuned -- Regional Error Rates**
 
-![XGB Tuned Regional](imgs/XGB_Tuned_regional_errors.png)
+![XGB Tuned Regional](step04_final_report/imgs/XGB_Tuned_regional_errors.png)
 
 **Figure 17: XGB Tuned -- Temporal Error Rates**
 
-![XGB Tuned Temporal](imgs/XGB_Tuned_temporal_residuals.png)
+![XGB Tuned Temporal](step04_final_report/imgs/XGB_Tuned_temporal_residuals.png)
 
 ---
 
@@ -456,15 +461,15 @@ SLURM script: [`step03_second_model/slurm/run_svd_kmeans.sh`](step03_second_mode
 
 **SVD Explained Variance (k=15, cumulative variance = 0.9764)**
 
-![Eigenvalue Analysis](imgs/SVD_eigenvalue_analysis.png)
+![Eigenvalue Analysis](step04_final_report/imgs/SVD_eigenvalue_analysis.png)
 
 The top 15 principal components retain 97.6% of the variance in the 20-feature scaled matrix. The singular value decay is rapid -- the first 5 components capture the majority of variance -- indicating that the feature space has strong low-dimensional structure.
 
 **KMeans Clustering (best k=8, silhouette=0.2356)**
 
-![Cluster Scatter](imgs/SVD_KMeans_cluster_scatter.png)
+![Cluster Scatter](step04_final_report/imgs/SVD_KMeans_cluster_scatter.png)
 
-![Label Scatter](imgs/SVD_KMeans_label_scatter.png)
+![Label Scatter](step04_final_report/imgs/SVD_KMeans_label_scatter.png)
 
 **SVD_XGB Performance**
 
@@ -498,19 +503,19 @@ Threshold used: 0.66 (calibrated on validation set via F2-score sweep)
 
 **Figure 18: SVD_XGB -- Geographic Errors**
 
-![SVD XGB Geo Errors](imgs/SVD_XGB_geo_errors.png)
+![SVD XGB Geo Errors](step04_final_report/imgs/SVD_XGB_geo_errors.png)
 
 **Figure 19: SVD_XGB -- Errors Only (FP + FN)**
 
-![SVD XGB Errors Only](imgs/SVD_XGB_errors_only.png)
+![SVD XGB Errors Only](step04_final_report/imgs/SVD_XGB_errors_only.png)
 
 **Figure 20: SVD_XGB -- Regional Error Rates**
 
-![SVD XGB Regional](imgs/SVD_XGB_regional_errors.png)
+![SVD XGB Regional](step04_final_report/imgs/SVD_XGB_regional_errors.png)
 
 **Figure 21: SVD_XGB -- Temporal Error Rates**
 
-![SVD XGB Temporal](imgs/SVD_XGB_temporal_residuals.png)
+![SVD XGB Temporal](step04_final_report/imgs/SVD_XGB_temporal_residuals.png)
 
 ---
 
