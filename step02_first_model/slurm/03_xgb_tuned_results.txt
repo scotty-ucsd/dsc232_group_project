@@ -146,23 +146,17 @@ Spark UI is running on: exp-6-13
 ========================================================================
   CONCLUSION
 ========================================================================
-
   1. MODEL SUMMARY:
-     - Classic (Model 1): DT -> RF -> GBT progression with
-       PolynomialExpansion, Ocean PCA, and StandardScaler. Demonstrates
-       MLlib transformer breadth and natural complexity progression.
-     - XGBoost (Model 2): SparkXGBClassifier with MinMaxScaler,
+     - XGBoost (Model 1): SparkXGBClassifier with MinMaxScaler,
        Bucketizer, hand-crafted physics interactions, 6-month temporal
        memory.  Best for capturing threshold-like physics.
-     - Stacking (Model 3): RF+GBT base learners, XGBoost meta-learner.
-       Learns WHERE each base model is reliable.
-     - Corrected Stacking (Model 4): OOF training, pruned meta-features,
-       LogisticRegression.  Fixes severe overfitting from Model 3.
+     - SVD KMeans (Model 2): [INSERT COMMENT]
 
   2. UNDERSAMPLING IMPACT:
      Training on balanced data (1:10 ratio) forces
      the model to attend to rare positive events rather than achieving
      high accuracy by always predicting negative.
+     note: not sure if correct
 
   3. PR-AUC AS PRIMARY METRIC:
      With <1% positive rate, ROC-AUC can be misleadingly high.

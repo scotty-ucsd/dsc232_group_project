@@ -476,9 +476,10 @@ def fig_dataset_overview(dataset_meta: dict):
     ax1.tick_params(colors=STYLE["TEXT"])
     ax1.xaxis.grid(True, color=STYLE["GRID"], lw=0.5, alpha=0.6)
     ax1.yaxis.grid(False)
+    ax1.set_xlim(right=max(rows) * 20)
     for bar, val in zip(bars1, rows):
-        ax1.text(bar.get_width() * 1.1, bar.get_y() + bar.get_height() / 2,
-                 f"{val:,.0f}", va="center", fontsize=9, color=STYLE["TEXT"])
+        ax1.text(bar.get_width() * 2.5, bar.get_y() + bar.get_height() / 2,
+                 f"{val:,.0f}", va="center", fontsize=8, color=STYLE["TEXT"])
 
     bars2 = ax2.barh(labels, cols, color=colors,
                      edgecolor=STYLE["BG"], alpha=0.85)
@@ -585,45 +586,72 @@ def fig_physical_ranges(all_range_stats: dict):
 
 
 def fig_null_structure(dataset_meta: dict):
-    """Grouped horizontal bar chart of null counts per column."""
-    all_cols = []
-    seen = set()
-    for name in dataset_meta:
-        for c in dataset_meta[name]["columns"]:
-            if c not in seen:
-                all_cols.append(c); seen.add(c)
+    """
+    2x2 grid of null count bar charts, one panel per source dataset.
+    Each panel shows only the columns belonging to that dataset.
+    Log scale on x handles the wide range of null counts.
+    Panels: Bedmap3 Static, GRACE, ICESat-2 Dynamic, Ocean Dynamic.
+    Fused dataset omitted from panels (it aggregates the others).
+    """
+    # Draw only the four source datasets, not the fused aggregate
+    panel_order = [
+        "bedmap3_static.parquet",
+        "grace.parquet",
+        "icesat2_dynamic.parquet",
+        "ocean_dynamic.parquet",
+    ]
+    # Keep only datasets that are actually in dataset_meta
+    panel_order = [n for n in panel_order if n in dataset_meta]
 
-    names = list(dataset_meta.keys())
-    fig, ax = new_fig(figsize=(14, max(5, len(all_cols) * 0.35)))
-    ax.set_title("Null Counts per Column",
+    # Fall back to all datasets if none of the above match
+    if not panel_order:
+        panel_order = list(dataset_meta.keys())
+
+    fig, axes = new_fig(nrows=2, ncols=2, figsize=(18, 14))
+    axes_flat = np.array(axes).flatten()
+
+    fig.suptitle("Null Counts per Column by Source Dataset (log scale)",
                  color=STYLE["TEXT"], fontsize=14, fontweight="bold")
 
-    y_pos      = np.arange(len(all_cols))
-    bar_height = 0.7 / max(len(names), 1)
-
-    for ds_idx, ds_name in enumerate(names):
+    for ax_idx, ds_name in enumerate(panel_order):
+        ax = axes_flat[ax_idx]
         nulls  = dataset_meta[ds_name].get("null_counts", {})
         label  = DATASET_LABELS.get(ds_name, ds_name)
         colour = DATASET_COLOURS.get(ds_name, STYLE["BLUE"])
-        vals   = [nulls.get(c, 0) for c in all_cols]
 
-        ax.barh(y_pos + ds_idx * bar_height, vals, height=bar_height,
-                color=colour, alpha=0.8, label=label,
+        # Only show columns with at least one null
+        cols_with_nulls = [(c, v) for c, v in nulls.items() if v > 0]
+        if not cols_with_nulls:
+            ax.text(0.5, 0.5, "No nulls", ha="center", va="center",
+                    transform=ax.transAxes, color=STYLE["TEXT"], fontsize=11)
+            ax.set_title(label, color=STYLE["TEXT"])
+            continue
+
+        col_names = [c for c, _ in cols_with_nulls]
+        col_vals  = [v for _, v in cols_with_nulls]
+
+        y_pos = np.arange(len(col_names))
+        ax.barh(y_pos, col_vals, height=0.65,
+                color=colour, alpha=0.85,
                 edgecolor=STYLE["BG"], linewidth=0.3)
 
-    ax.set_yticks(y_pos + bar_height * (len(names) - 1) / 2)
-    ax.set_yticklabels(all_cols, fontsize=8, color=STYLE["TEXT"])
-    ax.set_xlabel("Null Count", color=STYLE["TEXT"], fontsize=9)
-    ax.tick_params(colors=STYLE["TEXT"])
-    ax.xaxis.set_major_formatter(mticker.EngFormatter())
-    ax.xaxis.grid(True, color=STYLE["GRID"], lw=0.5, alpha=0.5)
-    ax.yaxis.grid(False)
-    ax.legend(fontsize=8, facecolor=STYLE["BG"], edgecolor=STYLE["GRID"],
-              labelcolor=STYLE["TEXT"])
-    ax.invert_yaxis()
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(col_names, fontsize=8, color=STYLE["TEXT"])
+        ax.set_xscale("log")
+        ax.set_xlabel("Null Count (log scale)", color=STYLE["TEXT"], fontsize=9)
+        ax.set_title(label, color=STYLE["TEXT"])
+        ax.tick_params(colors=STYLE["TEXT"])
+        ax.xaxis.set_major_formatter(mticker.EngFormatter())
+        ax.xaxis.grid(True, color=STYLE["GRID"], lw=0.5, alpha=0.5)
+        ax.yaxis.grid(False)
+        ax.invert_yaxis()
+
+    # Hide unused panels if fewer than 4 datasets
+    for ax_idx in range(len(panel_order), 4):
+        axes_flat[ax_idx].set_visible(False)
+
     fig.tight_layout()
     save_fig(fig, OUTPUT_DIR, "fig_06_null_structure.png")
-
 
 # =====================================================================
 # SAMPLING
