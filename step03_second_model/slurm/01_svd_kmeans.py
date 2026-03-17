@@ -1,57 +1,11 @@
 # =====================================================================
-# ml_pipeline_svd_kmeans.py  -- v2 (post run-1 fixes)
+# 01_svd_kmeans.py: SVD + KMeans + XGBoost pipeline (Model 2).
 #
-# Changes from v1 (based on Job 47265400 results analysis):
-#
-#  FIX 1  -- SVD explained variance calculation corrected.
-#            RowMatrix.computeColumnSummaryStatistics().variance() returns
-#            per-column variance of the SCALED matrix (values ~1.0 each
-#            after StandardScaler).  sigma2 from SVD are on a completely
-#            different scale, causing cumulative ~2.6e9 instead of [0,1].
-#            Fix: s_array only returned from RowMatrix (for singular value
-#            decay plot); explained_ratio now comes from pca_model's own
-#            explainedVariance (correct [0,1] ratios, same algorithm).
-#
-#  FIX 2  -- Threshold sweep extended 0.55 -> 0.95.
-#            v1 reported "Optimal t=0.56" -- it hit the ceiling of the
-#            sweep (np.arange(0.10, 0.56, 0.02)).  Model clearly wants
-#            a higher threshold. Extending to 0.95 lets the search find
-#            the precision-recall trade-off point.
-#
-#  FIX 3  -- Threshold fallback raised 0.35 -> 0.50.
-#            With scale_pos_weight ~10.5, XGBoost raw probabilities are
-#            inflated.  A 0.35 fallback generates too many false positives.
-#
-#  FIX 4  -- XGBoost regularisation tightened to fight overfitting.
-#            Train PR=0.29 vs test PR=0.07 = gap of 0.22 (severe).
-#            max_depth 5->4, eta 0.05->0.1, num_round 500->300,
-#            min_child_weight 3->10, reg_lambda 1->5, reg_alpha 0.1->1,
-#            subsample 0.8->0.7, colsample_bytree 0.8->0.7.
-#
-#  FIX 5  -- scale_pos_weight capped at 15.
-#            Computed spw was 10.52.  Combined with the REGION_WEIGHT_MAP
-#            multipliers, the model was overwhelmingly incentivised to
-#            predict positive everywhere -> 110M FP in run 1.
-#            SPW_CAP=15 as hard ceiling.
-#
-#  FIX 6  -- REGION_WEIGHT_MAP expanded and aligned.
-#            Added totten_and_aurora (second-highest risk).  Ross and
-#            ronne raised from pipeline_config's 0.7x to 2x so they
-#            aren't actively downweighted.
-#
-#  FIX 7  -- Amundsen override threshold raised 0.25 -> 0.35.
-#            Amundsen TPR=0.93 in run 1 (PASS PASS, target 0.50).  Problem
-#            is now FPR=0.95, not under-recall.  0.35 keeps TPR > 0.50
-#            while substantially reducing false alarms.
-#
-#  FIX 8  -- KMeans cluster ID appended to XGBoost input features.
-#            Cluster pos_rates ranged 0.046-0.132 in run 1 -- meaningful.
-#            Adding cluster_id (as float) to the SVD feature vector gives
-#            XGBoost direct access to this regional structure signal.
-#
-#  FIX 9  -- Eigenvalue plot uses PCA-derived explained_ratio (correct).
-#            Cumulative panel now shows values in [0,100]% not 2.6e9.
-#
+# Loads unified features from data/ml_ready_unified/, trims to 20
+# clean features, applies regional residualization and lag engineering,
+# reduces dimensionality via RowMatrix.computeSVD + PCA, clusters with
+# KMeans, and trains a SparkXGBClassifier on the SVD components plus
+# cluster ID.  Runs on SDSC Expanse via: sbatch run_svd_kmeans.sh
 # =====================================================================
 
 from __future__ import annotations
