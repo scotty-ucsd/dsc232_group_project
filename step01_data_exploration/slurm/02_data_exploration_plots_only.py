@@ -954,6 +954,9 @@ def plot_timeseries_with_trend(
     title: str,
     annotation_y_factor: float = 0.92,
 ):
+
+    dates = pd.to_datetime(dates) #hans ensuring dates are pandas datetime
+
     """Shared monthly time-series plot with seasonal shading and trend."""
     ax.plot(
         dates,
@@ -974,7 +977,8 @@ def plot_timeseries_with_trend(
     for year in years:
         start = pd.Timestamp(year=year, month=3, day=1)
         end = pd.Timestamp(year=year, month=8, day=31)
-        ax.axvspan(start, end, color=STYLE["BLUE"], alpha=0.08, linewidth=0)
+        #ax.axvspan(start, end, color=STYLE["BLUE"], alpha=0.08, linewidth=0)
+        ax.axvspan(start, end, color=STYLE["BLUE"], alpha=0.1) #hans making shaded regions bit darker
 
     y_min = float(np.nanmin(values))
     y_max = float(np.nanmax(values))
