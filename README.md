@@ -1,152 +1,680 @@
-## Milestone 2
+<a id="top"></a>
+<div align="center">
+  <h1>Antarctic Ice Sheet Instability Prediction</h1>
+  <h3><i>Distributed Machine Learning on Multi-Sensor Satellite Data</i></h3>
+  <h4>DSC 232R: Big Data Analytics -- Final Report</h4>
 
-### Data
-* The dataset is the combination of 5 heterogeneous Antartic datasets:
+  <p>
+    <strong>Scotty Rogers</strong> (Pipeline Architect &amp; Data Engineer) &nbsp;&bull;&nbsp;
+    <strong>Hans Hanson</strong> (Analysis &amp; Writeup)
+  </p>
 
-| Dataset | What It Measures | Native Format | Resolution |
+  <img src="step04_final_report/imgs/antarctica_eda_images_for_header.png" alt="Antarctica EDA Header" width="800"/>
+
+  <div>
+    <img src="https://img.shields.io/badge/Apache_Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white" />
+    <img src="https://img.shields.io/badge/XGBoost-189FDD?style=for-the-badge&logo=xgboost&logoColor=white" />
+    <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+    <img src="https://img.shields.io/badge/SDSC_Expanse-005F73?style=for-the-badge" />
+    <img src="https://img.shields.io/badge/Status-Complete-success?style=for-the-badge" />
+  </div>
+</div>
+
+---
+
+<p align="center">
+  <a href="#1-introduction" style="font-size: 16px;">Introduction</a> |
+  <a href="#2-methods" style="font-size: 16px;">Methods</a> |
+  <a href="#3-results" style="font-size: 16px;">Results</a> |
+  <a href="#4-discussion" style="font-size: 16px;">Discussion</a> |
+  <a href="#5-conclusion" style="font-size: 16px;">Conclusion</a> |
+  <a href="#6-statement-of-collaboration" style="font-size: 16px;">Collaboration</a>
+</p>
+
+---
+
+## 1. Introduction
+[Back to Top](#top)
+
+### Why This Project?
+
+The Antarctic Ice Sheet is the primary regulator of the global hydrological cycle and contains enough frozen water to raise global mean sea levels by approximately 58 meters. However, current ice sheet projections are plagued by uncertainty. The West Antarctic Ice Sheet (WAIS), in particular, is losing mass at an accelerating rate primarily due to the intrusion of warm Circumpolar Deep Water (CDW) that drives vigorous sub-ice-shelf basal melting. This basal melt thins the ice shelves, reducing their buttressing effect, and exposes marine-terminating glaciers to Marine Ice Sheet Instability (MISI). MISI acts as a catastrophic positive feedback loop: as the grounding line retreats into deeper water along the inland-sloping bedrock, ice discharge accelerates and can lead to runaway retreat. Predicting where and when the ice sheet will cross these critical thresholds is essential for accurate climate modelling, coastal planning, and future policy development.
+
+Traditional approaches rely on coupled numerical models such as NEMO or PISM. While rich in physical detail, these simulations are computationally expensive and limited in temporal or spatial scope. As a result, calculating comprehensive uncertainty estimates or continent-wide probabilistic projections remains a massive computational bottleneck. Our project bypasses these limitations by taking a novel, data-driven approach.
+
+We fuse five heterogeneous satellite datasets -- ICESat-2 laser altimetry, GRACE-FO gravimetry, Bedmap3 sub-glacial topography, and GLORYS12V1 4D ocean thermodynamics -- into a unified ~1.3 billion row feature space. An ML-ready dataset of this scale covering all major Antarctic drainage basins does not currently exist in the published literature. Using distributed machine learning via Apache Spark, including SVD/PCA dimensionality reduction and XGBoost classifiers, this project directly classifies basal loss events and identifies high-resolution early-warning signatures of ice sheet instability.
+
+### Why Big Data and Distributed Computing?
+
+This problem requires big data and distributed computing for three fundamental reasons.
+
+**Data Volume.** Our fused spatiotemporal dataset comprises 1,386,866,499 rows x 28+ columns, representing over 38.8 billion unique observations spanning 2019 to 2025. The compressed Parquet footprint is approximately 40 GB. When uncompressed and loaded into memory for matrix operations, this data volume easily triples RAM usage compared to a local environment.
+
+**Feature Engineering at Scale.** Computing per-pixel temporal features requires window operations partitioned by spatial coordinates. Roughly 2 million unique pixels spanning several years generates billions of evaluations that must be distributed across executors. The lag feature engineering pipeline alone generates around 14 GB of shuffle data per phase. Without Spark's shuffle architecture and disk spill capability, the processing would require manual batch management.
+
+**Model Training.** XGBoost's distributed histogram construction and Spark's ML pipeline evaluation on the full dataset would be impossible on a single machine. SDSC Expanse provides 32 cores and 128 GB RAM per node, enabling parallel training across 6 executors.
+
+### Project Overview
+
+| Aspect | Detail |
+|---|---|
+| **Target Variable** | `basal_loss_agreement`: dual-sensor binary label (GRACE mass anomaly AND ICESat-2 elevation thinning in agreement) |
+| **Model 1** | SparkXGBClassifier with full 64-feature preprocessing pipeline |
+| **Model 2** | SVD (RowMatrix.computeSVD) + KMeans clustering + SparkXGBClassifier on principal components |
+| **Evaluation** | PR-AUC (primary), ROC-AUC, F1, Precision, Recall |
+| **Infrastructure** | SDSC Expanse, Singularity container, Apache Spark 3.x, 32 cores / 128 GB |
+
+---
+
+## 2. Methods
+[Back to Top](#top)
+
+### 2.1 Data Exploration
+
+The Antarctic fused dataset was constructed by spatially joining five satellite products onto a common 500m Antarctic Polar Stereographic (EPSG:3031) master grid:
+
+| Dataset | Measures | Resolution |
+|---|---|---|
+| ICESat-2 ATL15 | Ice surface elevation change | 1 km |
+| GRACE/GRACE-FO | Gravitational mass anomaly | ~27 km |
+| Bedmap3 | Sub-surface topography and ice thickness | 500 m |
+| GLORYS12V1 | Ocean temperature and salinity (4D) | ~8 km |
+| Master Grid | Coordinate reference template | 500 m |
+
+For details on fusing these datasets and the consequent "pre-pre-processing," see [here](step00_dataset_synthesis/step00_data_synthesis_README.md).
+
+Key EDA findings from distributed Spark operations (`df.count()`, `df.describe()`, `groupBy().agg()`, `distinct().count()`):
+
+- 28 raw columns, approximately 1.3 billion rows
+- Extreme class imbalance: less than 3% positive rate for `basal_loss_agreement`
+- Ocean features are structurally null for inland pixels (expected -- ocean thermodynamics only defined where ocean contacts ice shelf)
+- Strong multicollinearity within the ocean feature group and GRACE feature group
+- Approximately 8% missing values in ICESat-2 delta_h due to orbital coverage gaps
+
+```python
+# Row count and schema via Spark
+total_obs = df.count()
+df.printSchema()
+df.select(numeric_cols).summary("count", "min", "max", "mean", "stddev").show()
+
+# Categorical distribution via groupBy/agg
+df.groupBy("mask").agg(
+    F.count("*").alias("count"),
+    F.avg("delta_h").alias("avg_delta_h")
+).orderBy("mask").show()
+
+# Unique spatial pixels
+n_pixels = df.select("x", "y").distinct().count()
+```
+
+**Figure 1: Dataset Overview**
+
+![Dataset Overview](step04_final_report/imgs/fig_01_dataset_overview.png)
+
+**Figure 2: Data Completeness**
+
+![Data Completeness](step04_final_report/imgs/fig_02_data_completeness.png)
+
+**Figure 3: Feature Distributions -- Fused Dataset**
+
+![Fused Histograms](step04_final_report/imgs/fig_03_histograms_antarctica_sparse_features.png)
+
+The surface and bedrock elevation distributions reflect the Antarctic topography: a high-elevation interior plateau and deep marine basins below sea level. The delta_h (surface height change) distribution is heavily concentrated near zero with a long negative tail -- most pixels are stable, with active thinning confined to ice shelf margins.
+
+**Figure 4: Feature Distributions -- Individual Datasets**
+
+![Bedmap3 Histograms](step04_final_report/imgs/fig_03_histograms_bedmap3_static.png)
+
+![ICESat-2 Histograms](step04_final_report/imgs/fig_03_histograms_icesat2_dynamic.png)
+
+![Ocean Dynamic Histograms](step04_final_report/imgs/fig_03_histograms_ocean_dynamic.png)
+
+![GRACE Histograms](step04_final_report/imgs/fig_03_histograms_grace.png)
+
+**Figure 5: Feature Correlations -- Fused Dataset**
+
+![Correlation Heatmap](step04_final_report/imgs/fig_04_correlation_antarctica_sparse_features.png)
+
+Ice surface elevation shows strong correlation with ice thickness and, to a lesser degree, bedrock elevation -- physically expected as surface height reflects the integrated ice column.
+
+**Figure 6: Physical Variable Ranges**
+
+![Physical Ranges](step04_final_report/imgs/fig_05b_physical_ranges_symlog.png)
+
+**Figure 7: Missing Data Structure**
+
+![Null Structure](step04_final_report/imgs/fig_06_null_structure.png)
+
+Missing ocean data is expected and physically meaningful: ocean thermodynamics are only defined where ocean water contacts the ice shelf base. The approximately 8% missing ICESat-2 values are due to gaps in netCDF source files.
+
+**Figure 8: Ice Mask and Ocean Coverage**
+
+![Ice Mask](step04_final_report/imgs/fig_07_ice_mask_ocean_coverage.png)
+
+Floating ice correctly appears along coastlines and inlet bays rather than in the continental interior. Ocean temperature values are co-located with the floating ice mask -- a spatial consistency check confirming the fusion was performed correctly.
+
+**Figure 9: Height Change and Mass Anomaly Spatial Distribution**
+
+![Delta H vs LWE](step04_final_report/imgs/fig_08_delta_h_vs_lwe_spatial.png)
+
+The greatest surface height changes concentrate near the coasts, consistent with basal melt-driven thinning. Mass anomalies from GRACE are co-located with the same coastal regions.
+
+**Figure 10: Mean Ice Height Change Over Time**
+
+![Delta H Timeseries](step04_final_report/imgs/fig_09_delta_h_timeseries.png)
+
+**Figure 11: Mean Ice Height (LWE) Over Time**
+
+![LWE Timeseries](step04_final_report/imgs/fig_10_lwe_timeseries.png)
+
+The LWE (liquid water equivalent) trend shows a steady decline over the observation period, consistent with accelerating mass loss from Antarctic ice shelves.
+
+---
+
+### 2.2 Preprocessing
+
+A multi-phase preprocessing pipeline was implemented in Spark to prepare the raw fused dataset for model training.
+
+**Temporal Split**
+
+The dataset was split temporally to prevent leakage, reflecting the real-world forecasting use case:
+
+| Split | Period | Rows |
+|---|---|---|
+| Train | Apr 2020 -- Dec 2022 | ~199M |
+| Validation | Jan 2023 -- Oct 2023 | ~72M |
+| Test | Nov 2023+ | ~126M |
+
+**Class Imbalance Handling**
+
+The positive rate is approximately 3% globally. Region-stratified undersampling was applied to the training split only:
+
+```python
+# Region-stratified undersampling ratios (negative:positive)
+REGION_NEG_RATIOS = {
+    "amundsen_sea":       5,   # smallest positive pool, most critical
+    "totten_and_aurora":  5,
+    "antarctic_peninsula": 8,
+    "lambert_amery":      12,
+    "ross":               12,
+    "ronne":              12,
+}
+```
+
+Additional sample weights were applied via `WEIGHT_COL` to further emphasize high-risk regions during training.
+
+**Feature Engineering (Model 1 -- XGBoost pipeline)**
+
+The XGBoost pipeline engineers 64+ features across five categories:
+
+| Category | Example Features |
+|---|---|
+| Static geometry | `grounding_line_vulnerability`, `retrograde_flag`, `bed_slope` |
+| Ocean interactions | `thermal_driving`, `t_star_anomaly`, `lwe_trend` |
+| Temporal memory | `thetao_mo_lag1`, `thetao_mo_lag3`, `t_star_mo_lag1` |
+| Regional residuals | `thetao_mo_resid`, `t_star_mo_resid`, `so_mo_resid` |
+| Cyclical encoding | `sin_month`, `cos_month` |
+
+```python
+# Preprocessing pipeline: Imputer -> Bucketizer -> OHE -> Assembler -> MinMaxScaler
+stages = [
+    Imputer(strategy="median", inputCols=numeric, outputCols=imputed),
+    Bucketizer(splits=[-inf, 5000, 20000, 50000, 100000, inf],
+               inputCol="dist_to_grounding_line",
+               outputCol="gl_bucket_idx", handleInvalid="keep"),
+    StringIndexer(inputCol="regional_subset_id",
+                  outputCol="region_index", handleInvalid="keep"),
+    OneHotEncoder(inputCol="gl_bucket_idx", outputCol="gl_bucket_ohe"),
+    OneHotEncoder(inputCol="region_index", outputCol="region_ohe"),
+    VectorAssembler(inputCols=imputed + ["gl_bucket_ohe", "region_ohe"],
+                    outputCol="raw_features", handleInvalid="skip"),
+    MinMaxScaler(inputCol="raw_features", outputCol="features"),
+]
+```
+
+**Feature Engineering (Model 2 -- SVD pipeline)**
+
+The SVD pipeline uses 20 clean non-leaky features to avoid temporal leakage:
+
+```python
+FEATURES_CLEAN = [
+    # Ocean observations (9)
+    "thetao_mo", "t_star_mo", "so_mo", "t_f_mo",
+    "thetao_quarterly_avg", "thetao_quarterly_std",
+    "t_star_quarterly_avg", "t_star_quarterly_std",
+    "regional_t_star_climatology",
+    # Static geometry (9)
+    "dist_to_grounding_line", "grounding_line_vulnerability",
+    "retrograde_flag", "bed_slope", "bed", "clamped_depth",
+    "ice_draft", "thickness", "ice_area",
+    # GRACE (1) + Temporal (1)
+    "lwe_trend", "month_idx",
+]
+```
+
+Regional residualization was applied to all ocean features using training-split means only, then lag features and engineered features were added before scaling:
+
+```python
+# Regional residualization (train means only -- no leakage)
+region_means = train.groupBy("regional_subset_id").agg(
+    *[F.avg(c).alias(f"{c}_region_mean") for c in ocean_cols]
+)
+
+# Lag features via Spark Window
+cell_w = Window.partitionBy("x", "y").orderBy("month_idx")
+df = df.withColumn("thetao_mo_lag1", F.lag("thetao_mo", 1).over(cell_w))
+
+# Preprocessing: Imputer -> Assembler -> StandardScaler
+Pipeline(stages=[
+    Imputer(strategy="median", inputCols=feature_cols, outputCols=imputed),
+    VectorAssembler(inputCols=imputed, outputCol="raw_features"),
+    StandardScaler(inputCol="raw_features", outputCol="scaled_features",
+                   withStd=True, withMean=False),
+])
+```
+
+---
+
+### 2.3 Model 1: SparkXGBClassifier
+
+Two configurations of SparkXGBClassifier were trained and compared: a baseline and a tuned version. Both used `num_workers=1`, `tree_method="hist"`, and `eval_metric="aucpr"`.
+
+| Hyperparameter | XGB_Baseline | XGB_Tuned |
+|---|---|---|
+| `max_depth` | 4 | 5 |
+| `n_estimators` | 100 | 150 |
+| `learning_rate` | 0.1 | 0.05 |
+| `subsample` | 0.8 | 0.65 |
+| `colsample_bytree` | 0.8 | 0.7 |
+| `min_child_weight` | 10 | 20 |
+| `reg_alpha` | -- | 0.1 |
+| `reg_lambda` | -- | 1.0 |
+
+```python
+XGB_CONFIGS = {
+    "XGB_Baseline": dict(
+        max_depth=4,
+        n_estimators=100,
+        learning_rate=0.1,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        min_child_weight=10,
+        tree_method="hist",
+        max_bin=256,
+    ),
+    "XGB_Tuned": dict(
+        max_depth=5,
+        n_estimators=150,
+        learning_rate=0.05,
+        subsample=0.65,
+        colsample_bytree=0.7,
+        min_child_weight=20,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
+        tree_method="hist",
+        max_bin=256,
+    ),
+}
+
+clf = SparkXGBClassifier(
+    features_col="features",
+    label_col=LABEL_COL,
+    weight_col=WEIGHT_COL,
+    eval_metric="aucpr",
+    use_gpu=False,
+    num_workers=1,
+    **cfg,
+)
+```
+
+Full code for baseline version: [`step02_first_model/slurm/02_xgb_baseline.py`](step02_first_model/slurm/02_xgb_baseline.py)
+SLURM script for baseline version: [`step02_first_model/slurm/02_run_xgb_baseline.sh`](step02_first_model/slurm/02_run_xgb_baseline.sh)
+
+Full code for tuned version: [`step02_first_model/slurm/03_xgb_tuned.py`](step02_first_model/slurm/03_xgb_tuned.py)
+SLURM script for tuned version: [`step02_first_model/slurm/03_run_xgb_tuned.sh`](step02_first_model/slurm/03_run_xgb_tuned.sh)
+
+---
+
+### 2.4 Model 2: SVD + KMeans + SparkXGBClassifier
+
+The second model implements a full dimensionality reduction and clustering pipeline before supervised classification.
+
+**Step 1: Distributed SVD via RowMatrix.computeSVD**
+
+```python
+# Distributed SVD using Spark MLLib RowMatrix
+rdd = (scaled_df
+       .select(vector_to_array(F.col("scaled_features")).alias("arr"))
+       .rdd.map(lambda row: MLLibVectors.dense(row["arr"])))
+mat = RowMatrix(rdd)
+svd_result = mat.computeSVD(k=15, computeU=False)
+s_array = np.array(svd_result.s.toArray())
+```
+
+**Step 2: PCA projection for efficient transform**
+
+```python
+# PCA(k=15) for efficient train/val/test projection
+pca_model = PCA(k=15, inputCol="scaled_features",
+                outputCol="svd_features").fit(train_scaled)
+explained = np.array(pca_model.explainedVariance.toArray())
+```
+
+**Step 3: KMeans clustering on SVD components**
+
+```python
+# Silhouette sweep over k = [4, 6, 8, 10]
+for k_test in [4, 6, 8, 10]:
+    km = SparkKMeans(featuresCol="svd_features", predictionCol="cluster",
+                     k=k_test, seed=42, maxIter=50).fit(df_svd)
+    sil = ClusteringEvaluator(metricName="silhouette",
+                              distanceMeasure="squaredEuclidean"
+                              ).evaluate(km.transform(df_svd))
+```
+
+**Step 4: XGBoost on SVD + cluster features**
+
+The cluster ID was appended to the SVD feature vector (16 total dimensions) and passed to SparkXGBClassifier with `scale_pos_weight` capped at 15 and dynamic threshold calibration on the validation set using F2-score (emphasizing recall).
+
+```python
+# Append cluster ID to SVD features (FIX 8)
+df = VectorAssembler(
+    inputCols=pc_cols + ["cluster_float"],
+    outputCol="xgb_features",
+    handleInvalid="skip",
+).transform(df)
+
+# Dynamic threshold via F2-score sweep on validation set
+for t in np.arange(0.10, 0.96, 0.02):
+    fb = (1 + 4) * prec * rec / (4 * prec + rec + 1e-9)  # F2-score
+```
+
+Full code: [`step03_second_model/slurm/01_svd_kmeans.py`](step03_second_model/slurm/01_svd_kmeans.py)
+SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_model/slurm/01_run_svd_kmeans.sh)
+
+---
+
+## 3. Results
+[Back to Top](#top)
+
+### 3.1 Model 1: SparkXGBClassifier
+
+| Model | Split | ROC-AUC | PR-AUC | F1 | Precision | Recall |
+|---|---|---|---|---|---|---|
+| XGB_Baseline | train | 0.9959 | 0.9455 | 0.9535 | 0.9676 | 0.9483 |
+| XGB_Baseline | val | 0.9802 | 0.4468 | 0.9691 | 0.9813 | 0.9619 |
+| XGB_Baseline | test | 0.9779 | 0.5474 | 0.9631 | 0.9716 | 0.9582 |
+| XGB_Tuned | train | 0.9960 | 0.9484 | 0.9523 | 0.9670 | 0.9469 |
+| XGB_Tuned | val | 0.9792 | 0.4429 | 0.9658 | 0.9795 | 0.9573 |
+| XGB_Tuned | test | 0.9676 | 0.5035 | 0.9585 | 0.9680 | 0.9527 |
+| Physics_Threshold | test | 0.4992 | 0.0394 | 0.9304 | 0.9212 | 0.9401 |
+
+**Regional Breakdown -- XGB_Baseline Test Set**
+
+| Region | Predicted Rate | True Rate | n |
 |---|---|---|---|
-| **ICESat-2 ATL15** | Ice surface elevation change | NetCDF (HDF5 groups, 4 tiles) | 1 km |
-| **GRACE/GRACE-FO** | Gravitational mass anomaly | NetCDF (lat/lon, 0.25°) | ~27 km |
-| **Bedmap3** | Subsurface topography & ice thickness | NetCDF | 500 m |
-| **GLORYS12V1** | Ocean temperature & salinity (4D) | NetCDF (lat/lon/depth/time) | 1/12° (~8 km) |
-| **Master Grid** | Coordinate reference template | Created by pipeline | 500 m |
+| amundsen_sea | 0.0936 | 0.1276 | 10,869,309 |
+| antarctic_peninsula | 0.0793 | 0.0151 | 14,578,163 |
+| lambert_amery | 0.0836 | 0.0236 | 27,227,872 |
+| ronne | 0.0286 | 0.0146 | 23,682,149 |
+| ross | 0.0659 | 0.0371 | 34,371,219 |
+| totten_and_aurora | 0.0768 | 0.0827 | 15,988,044 |
 
-* While sample data can be accessed directly in the repo, the full merged dataset can be accessed [here](https://drive.google.com/file/d/1SCAh3grsFHkzpx7UXMOyG7_7V2c_xyG0/view?usp=sharing)
+**Regional Breakdown -- XGB_Tuned Test Set**
 
-### SDSC Expanse Environment Setup
+| Region | Predicted Rate | True Rate | n |
+|---|---|---|---|
+| amundsen_sea | 0.0735 | 0.1276 | 10,869,309 |
+| antarctic_peninsula | 0.0839 | 0.0151 | 14,578,163 |
+| lambert_amery | 0.0907 | 0.0236 | 27,227,872 |
+| ronne | 0.0395 | 0.0146 | 23,682,149 |
+| ross | 0.0684 | 0.0371 | 34,371,219 |
+| totten_and_aurora | 0.0650 | 0.0827 | 15,988,044 |
 
-#### Jupyter Session Details
-* Account:
-    ```
-    TG-SEE260003
-    ```
-* Partition:
-    ```
-    shared
-    ```
-* Time limit (min): 45
-    * To get statistics, create plots, generate sample subset for `antarctica_sparse_features.parquet` took ~ 26 minutes 
-* Number of cores: 32
-    * *note: see next section for more details*
-* Memory required per node (GB): 128
-    * *note: see next section for more details*
-* Singularity Image File Location:
-    ```
-    ~/esolares/spark_py_latest_jupyter_dsc232r.sif
-    ```
-* Environment Modules to be loaded:
-    ```
-    singularitypro
-    ```
-* Working Directory:
-    ```
-    home
-    ```
-* Type:
-    ```
-    JupyterLab
-    ```
+**Figure 12: XGB Baseline -- Geographic Errors**
 
-#### SparkSession Configuration
-* Configuration Details:
-    ```python
-    spark = (
-        SparkSession.builder
-        .appName("HPC_Antarctic_Unified_EDA_Pipeline")
-        .config("spark.driver.memory",            driver_mem)
-        .config("spark.executor.instances",        str(EXECUTOR_INSTANCES))
-        .config("spark.executor.cores",            str(EXECUTOR_CORES))
-        .config("spark.executor.memory",           exec_mem)
-        .config("spark.sql.shuffle.partitions",    str(SHUFFLE_PARTITIONS))
-        # --- Driver result budget ---
-        .config("spark.driver.maxResultSize",      "4g")
-        # --- Network stability for large scans ---
-        .config("spark.network.timeout",           "1200s")
-        # --- Parallel partition discovery for deep dirs ---
-        .config("spark.sql.sources.parallelPartitionDiscovery.threshold", "32")
-        .config("spark.sql.sources.parallelPartitionDiscovery.parallelism", "64")
-        # --- Adaptive Query Execution ---
-        .config("spark.sql.adaptive.enabled",                      "true")
-        .config("spark.sql.adaptive.coalescePartitions.enabled",   "true")
-        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128m")
-        # --- Parquet pushdown & vectorisation ---
-        .config("spark.sql.parquet.filterPushdown",                "true")
-        .config("spark.sql.parquet.mergeSchema",                   "false")
-        # --- Disk spill safety : use Lustre scratch, NOT /tmp ---
-        .config("spark.local.dir",
-                os.environ.get("TMPDIR",
-                               os.path.join(os.getcwd(), "spark_scratch")))
-        .getOrCreate()
-    )
-    ```
-* Spark SDSC Resource Reasoning:
-    * 1. Cores
-        * Recall we selected 32 for the *Number of cores* in our SDSC setup
-        * `spark.executor.instances` is `6` and `spark.executor.cores` is `5`, so this results in `30` cores being used for our executor and the remaining `2` cores left for our driver
-    * 2. Memory
-        * Recall we selected 128 GB for the *Memory required per node* in our SDSC setup
-        * `spark.executor.memory` is `19` GB and we have a total of `6` `spark.executor.instances`, this results in using `114` GB
-        * `spark.driver.memory` is set to `10` GB, so that brings the total up to `124` GB and leaves a safety buffer of `4`GB for the VM operating system.
+![XGB Baseline Geo Errors](step04_final_report/imgs/XGB_Baseline_geo_errors.png)
 
-### Data Exploration
-#### Spark methods
-* `df.schema` was used to find column names and data types
-* `df.count()` was used to find the number of rows
-* `len(df.columns)` was used to find the number of columns
-* `df.agg()` with SQL functions was used to find min,max,mean,standard deviation
+**Figure 13: XGB Baseline -- Regional Error Rates**
 
-#### EDA Results
-* `antarctica_sparse_features.parquet` is a massive ~40GB compressed parquet file
-    * Total Number of Columns: 28
-    * Total Number of Rows: 1,386,866,499
-    * Total Observations: 38,832,261,972
-* Schema Details
+![XGB Baseline Regional](step04_final_report/imgs/XGB_Baseline_regional_errors.png)
 
-| # | Column | Type | Dims | Description | Source |
-|---|---|---|---|---|---|
-| 1 | `y` | float64 | — | EPSG:3031 northing [m] | Coordinates |
-| 2 | `x` | float64 | — | EPSG:3031 easting [m] | Coordinates |
-| 3 | `exact_time` | timestamp | — | ICESat-2 observation timestamp | ICESat-2 |
-| 4 | `month_idx` | int32 | — | Year×12+Month (partition key) | Derived |
-| 5 | `mascon_id` | int32 | — | GRACE mascon identifier | GRACE/Master map |
-| 6 | `surface` | float32 | — | Ice surface elevation [m] | Bedmap3 |
-| 7 | `bed` | float32 | — | Bedrock elevation [m] | Bedmap3 |
-| 8 | `thickness` | float32 | — | Ice thickness [m] | Bedmap3 |
-| 9 | `bed_slope` | float32 | — | \|∇(bed)\| [m/m] | Spatial features |
-| 10 | `dist_to_grounding_line` | float32 | — | Distance to grounding line [m] | Spatial features |
-| 11 | `clamped_depth` | float32 | — | Draft depth clamped to ocean floor [m] | Ocean |
-| 12 | `dist_to_ocean` | float32 | — | Distance to nearest ocean pixel [m] | Ocean |
-| 13 | `ice_draft` | float32 | — | Ice base depth below sea level [m] | Ocean |
-| 14 | `delta_h` | float32 | t | Elevation anomaly [m] | ICESat-2 |
-| 15 | `ice_area` | float32 | t | Fractional ice coverage | ICESat-2 |
-| 16 | `surface_slope` | float32 | t | \|∇(h_dynamic)\| [m/m] | Spatial features |
-| 17 | `h_surface_dynamic` | float32 | t | surface + delta_h [m] | Spatial features |
-| 18 | `thetao_mo` | float32 | t | Monthly avg ocean temp [°C] | Ocean |
-| 19 | `t_star_mo` | float32 | t | Monthly avg thermal driving [°C] | Ocean |
-| 20 | `so_mo` | float32 | t | Monthly avg salinity [PSU] | Ocean |
-| 21 | `t_f_mo` | float32 | t | Monthly avg freezing point [°C] | Ocean |
-| 22 | `t_star_quarterly_avg` | float32 | t | 3-month rolling avg T* [°C] | Ocean |
-| 23 | `t_star_quarterly_std` | float32 | t | 3-month rolling stddev T* | Ocean |
-| 24 | `thetao_quarterly_avg` | float32 | t | 3-month rolling avg θ [°C] | Ocean |
-| 25 | `thetao_quarterly_std` | float32 | t | 3-month rolling stddev θ | Ocean |
-| 26 | `lwe_mo` | float32 | t | Monthly GRACE LWE [m] | GRACE |
-| 27 | `lwe_quarterly_avg` | float32 | t | 3-month rolling avg LWE [m] | GRACE |
-| 28 | `lwe_quarterly_std` | float32 | t | 3-month rolling stddev LWE | GRACE |
-| 29 | `lwe_fused` | float32 | t | ABS-weighted pixel-level mass [m] | Fusion |
-| 30 | `month_idx` | int32 | — | Partition key (Year×12+Month) | Derived |
+**Figure 14: XGB Baseline -- Temporal Error Rates**
 
-> **Key**: "t" in the Dims column indicates the column varies with time (per ICESat-2 observation epoch).
-#### Data Polts
-* Create visualizations using Spark aggregations + matplotlib/plotly (sample data for plotting if needed)
-* Plot your data with various chart types: bar charts, histograms, scatter plots, etc.
-* Clearly explain each plot and what insights it provides
+![XGB Baseline Temporal](step04_final_report/imgs/XGB_Baseline_temporal_residuals.png)
 
-### Preprocessing Plan
-* How will you handle missing values?
-* How will you handle data imbalance (if applicable)?
-    * maybe 
-* What transformations will you apply (scaling, encoding, feature engineering)?
-    * `exact_time` will be scaled 0 to 1 using `df.withColumn` and SQL funtions
-    * `lwe` columns will be converted to meters from cm and mm
-* What Spark operations will you use for preprocessing?
+**Figure 15: XGB Tuned -- Geographic Errors**
 
+![XGB Tuned Geo Errors](step04_final_report/imgs/XGB_Tuned_geo_errors.png)
+
+**Figure 16: XGB Tuned -- Regional Error Rates**
+
+![XGB Tuned Regional](step04_final_report/imgs/XGB_Tuned_regional_errors.png)
+
+**Figure 17: XGB Tuned -- Temporal Error Rates**
+
+![XGB Tuned Temporal](step04_final_report/imgs/XGB_Tuned_temporal_residuals.png)
+
+---
+
+### 3.2 Model 2: SVD + KMeans + SparkXGBClassifier
+
+**SVD Explained Variance (k=15, cumulative variance = 0.9764)**
+
+![Eigenvalue Analysis](step04_final_report/imgs/SVD_eigenvalue_analysis.png)
+
+The top 15 principal components retain 97.6% of the variance in the 20-feature scaled matrix. The singular value decay is rapid -- the first 5 components capture the majority of variance -- indicating that the feature space has strong low-dimensional structure.
+
+**KMeans Clustering (best k=8, silhouette=0.2356)**
+
+![Cluster Scatter](step04_final_report/imgs/SVD_KMeans_cluster_scatter.png)
+
+![Label Scatter](step04_final_report/imgs/SVD_KMeans_label_scatter.png)
+
+**SVD_XGB Performance**
+
+| Model | Split | ROC-AUC | PR-AUC | F1 | Precision | Recall |
+|---|---|---|---|---|---|---|
+| SVD_XGB | train | 0.8052 | 0.2870 | 0.1925 | 0.9212 | 0.1850 |
+| SVD_XGB | val | 0.5060 | 0.0223 | 0.3241 | 0.9605 | 0.2143 |
+| SVD_XGB | test | 0.5973 | 0.0777 | 0.2330 | 0.9296 | 0.1677 |
+
+**Regional Breakdown -- SVD_XGB Test Set**
+
+| Region | PR-AUC | TPR | FPR | N+ |
+|---|---|---|---|---|
+| amundsen_sea | 0.1590 | 0.7604 | 0.8504 | 1,386,753 |
+| antarctic_peninsula | 0.0356 | 0.9116 | 0.8610 | 219,463 |
+| lambert_amery | 0.0219 | 0.9783 | 0.9509 | 643,730 |
+| ronne | 0.0123 | 0.8487 | 0.8288 | 346,684 |
+| ross | 0.0447 | 0.9088 | 0.8357 | 1,274,973 |
+| totten_and_aurora | 0.2005 | 0.9818 | 0.8324 | 1,322,004 |
+
+**Amundsen Sea TPR: 0.7604 (PASS -- target >= 0.50)**
+
+Threshold used: 0.66 (calibrated on validation set via F2-score sweep)
+
+**Confusion Matrix -- SVD_XGB Test Set**
+
+|  | Predicted Positive | Predicted Negative |
+|---|---|---|
+| **Actual Positive** | 4,635,191 (TP) | 558,416 (FN) |
+| **Actual Negative** | 104,913,366 (FP) | 16,609,783 (TN) |
+
+**Figure 18: SVD_XGB -- Geographic Errors**
+
+![SVD XGB Geo Errors](step04_final_report/imgs/SVD_XGB_geo_errors.png)
+
+**Figure 19: SVD_XGB -- Errors Only (FP + FN)**
+
+![SVD XGB Errors Only](step04_final_report/imgs/SVD_XGB_errors_only.png)
+
+**Figure 20: SVD_XGB -- Regional Error Rates**
+
+![SVD XGB Regional](step04_final_report/imgs/SVD_XGB_regional_errors.png)
+
+**Figure 21: SVD_XGB -- Temporal Error Rates**
+
+![SVD XGB Temporal](step04_final_report/imgs/SVD_XGB_temporal_residuals.png)
+
+---
+
+## 4. Discussion
+[Back to Top](#top)
+
+### 4.1 Metric Selection
+
+With a approximately 3% positive rate, ROC-AUC is inflated by the massive true-negative count. A model that predicts all negatives achieves 97% accuracy. PR-AUC directly measures the precision-recall tradeoff for the rare positive class and is the primary metric throughout this project. A PR-AUC of 0.09 is more informative than a ROC-AUC of 0.74 -- it reveals that the model struggles to find true positives without generating excessive false alarms.
+
+The high F1, Precision, and Recall values on val/test (around 0.97) are artifacts of majority-class dominance at the default 0.5 threshold -- the model predicts negative almost everywhere, which is statistically correct but scientifically useless.
+
+### 4.2 Model 1 Interpretation
+
+Both XGBoost models achieved strong generalization with small train-test gaps:
+
+```
+XGB_Baseline:
+  Train ROC-AUC: 0.9959
+  Test  ROC-AUC: 0.9779  (gap: 0.0180)
+  Test  PR-AUC:  0.5474
+  -> GOOD FIT
+
+XGB_Tuned:
+  Train ROC-AUC: 0.9960
+  Test  ROC-AUC: 0.9676  (gap: 0.0285)
+  Test  PR-AUC:  0.5035
+  -> GOOD FIT
+```
+
+The baseline outperformed the tuned model on the primary metric (PR-AUC 0.5474 vs 0.5035). The tuned model's lower learning rate and more aggressive regularization slightly reduced its ability to fit the rare positive class distribution. Both models substantially improved on the physics threshold baseline (PR-AUC 0.0394), demonstrating the learned features capture genuine signal beyond simple anomaly thresholds.
+
+The regional breakdown shows both models now detecting basal loss across all regions at reasonable rates. Amundsen Sea predicted rates (9.36% baseline, 7.35% tuned) still underestimate the true rate (12.76%), but this is now a 1.4x gap rather than the 40x underestimation we observed in earlier runs before fixing `num_workers`, `tree_method="hist"`, and the preprocessing cache.
+
+However, results should be scrutinized carefully. The high ROC-AUC values (0.97+) are partly inflated by the dominant true-negative count at the 3% positive rate. PR-AUC of 0.54 is meaningfully above the physics baseline but still indicates the model misses roughly half of true positive events in precision-recall space. The threshold calibration analysis shows the best F1 on test is 0.63 (at threshold 0.40), meaning even with optimal thresholding a significant fraction of events are missed or falsely alarmed.
+
+### 4.3 Model 2 Interpretation
+
+The SVD + KMeans + XGBoost pipeline used only 20 clean non-leaky features with regional residualization, trading overall performance for improved transparency and reduced leakage risk.
+
+The Amundsen Sea TPR of 0.7604 passed the target of 0.50, which is the strongest result for the most scientifically critical region. The KMeans clustering contributed meaningful structure -- cluster positive rates ranged from 0.046 to 0.132 across the 8 clusters, and appending the cluster ID as a feature gave XGBoost a direct signal for regional instability patterns.
+
+The train-test PR-AUC gap (0.2870 vs 0.0777) indicates overfitting, though the model correctly identifies itself as such in the fitting analysis. The root cause is that 15 SVD components on 20 features compress the feature space substantially, but with `scale_pos_weight=10.52` and aggressive undersampling, the model still learns to predict positive nearly everywhere (FPR of 0.85+ across all regions). The 0.66 threshold calibrated via F2-score helps but cannot overcome the fundamental precision issue: 104 million false positives against 4.6 million true positives.
+
+The comparison between Model 1 and Model 2 is instructive. Model 1 with 64 engineered features and full MinMaxScaler preprocessing achieves PR-AUC 0.54 with good fit. Model 2 with 20 clean features achieves PR-AUC 0.08 but with better Amundsen recall (76% vs the baseline's 94% predicted rate which still underestimates true rate). The dimensionality reduction forces more conservative, generalized predictions at the cost of overall discriminative power.
+
+The 0.66 threshold reflects the asymmetric cost structure: missing a genuine basal loss event in a high-risk region is treated as more costly than a false alarm, which is the correct scientific prioritization for MISI early-warning applications.
+
+### 4.4 Shortcomings
+
+Several limitations affect the reliability of these results.
+
+**Temporal stationarity assumption.** The temporal split assumes that the feature-target relationship is stationary over time. If MISI acceleration changes this relationship, the model will degrade on future data -- which the train-test gap already suggests is happening.
+
+**Label conservatism.** The `basal_loss_agreement` label requires both GRACE mass anomaly AND ICESat-2 elevation thinning. This AND-logic reduces the positive rate to under 3% and misses events visible to only one sensor. A union (OR) label would double the positive rate but introduce more noise.
+
+**Spatial autocorrelation.** Adjacent pixels share features (ice geometry, ocean conditions). Our evaluation does not account for spatial dependence, which may inflate performance estimates. A spatially blocked cross-validation would give a more honest generalization estimate.
+
+> **Note on seemingly high metrics:** The F1/Precision/Recall values near 0.96 on val/test largely reflect majority-class prediction at the default threshold, not genuine rare-event detection. PR-AUC is the honest metric. The XGB models achieve 0.54 test PR-AUC, which is meaningful but still leaves substantial room for improvement -- roughly half of true basal loss events are not captured at operationally acceptable precision.
+
+### 4.5 Impact of Distributed Computing
+
+| Operation | Serial Estimate | Distributed (Spark) | Enabled By |
+|---|---|---|---|
+| Feature engineering (windows) | ~8 hours | ~45 min | Partitioned Window parallelism |
+| XGBoost training | Impossible (OOM) | ~90 min | Barrier-mode histogram construction |
+| SVD computation | ~2 hours | ~15 min | RowMatrix.computeSVD distributed Gramian |
+| Full SVD pipeline | >12 hours | ~83 min | DAG lineage truncation + disk spill |
+
+---
+
+## 5. Conclusion
+[Back to Top](#top)
+
+### What We Learned
+
+**Big data processing fundamentals.** Managing Spark's DAG lineage is critical at scale. Without Parquet-flush lineage truncation after each major stage, the feature engineering pipeline exhausted executor memory. Understanding Spark's shuffle architecture -- partition count, spill strategy, AQE coalescing -- was as important as the ML modelling itself.
+
+**Distributed computing changed our approach.** We could iterate on the full 1.3 billion row dataset rather than sampling down. This is essential for detecting 3% positive-rate events: random sampling would destroy the spatial structure of basal loss signals and make the rare-event problem even harder.
+
+**Domain knowledge drives feature design.** The physics-inspired features (thermal driving, grounding line vulnerability, retrograde flag) were designed from glaciological understanding of MISI. Pure data-driven feature selection would miss the physical mechanisms that make some regions inherently unstable.
+
+### What We Would Do Differently
+
+**Start with simpler baselines.** A logistic regression on the SVD components should have been the first model, before XGBoost. This would have quantified the marginal value of non-linear modelling and provided a cleaner interpretability baseline.
+
+**Spatial cross-validation.** Splitting by region rather than by time for validation would better test geographic generalization and separate the temporal distribution-shift problem from the spatial generalization problem.
+
+**Aggressive feature pruning.** The 64-feature space for Model 1 could likely be reduced to 20-30 features without performance loss, using SHAP-based importance ranking. Fewer features would reduce the overfitting surface area.
+
+### What We Would Explore With More Time
+
+**Multi-node training.** The current setup uses a single 32-core node. Multi-node Spark clusters would enable faster training, larger hyperparameter sweeps, and the ability to train on the full 1.3 billion row dataset without undersampling.
+
+**Deep learning on pixel time series.** A 1D-CNN or LSTM on the per-pixel monthly time series could capture temporal patterns that tree-based models miss, particularly the gradual acceleration signatures preceding MISI threshold crossings.
+
+**Uncertainty quantification.** Bootstrap prediction intervals for risk-critical predictions would be essential for any operational deployment: "this pixel has a 90% credible interval of [0.60, 0.85] for basal loss probability over the next 12 months."
+
+---
+
+## 6. Statement of Collaboration
+[Back to Top](#top)
+
+**Scotty Rogers** (Pipeline Architect and Data Engineer): Designed and implemented the end-to-end Spark pipeline including raw data fusion (5 satellite datasets), feature engineering (64+ features), label construction (dual-sensor agreement), XGBoost and SVD/KMeans model training, and HPC deployment on SDSC Expanse. Managed the Singularity container environment and SLURM job scheduling. Debugged all OOM and checkpoint issues throughout the pipeline.
+
+**Hans Hanson**: Took lead on writeups and logistics/organization, contributed EDA plots and analysis, tested code and data subsets for debugging.
+
+---
+
+<details>
+  <summary><b>Appendix A: How to Reproduce</b></summary>
+  <br>
+
+  **Prerequisites:** Access to SDSC Expanse with Singularity, the `spark_py_latest_jupyter_dsc232r.sif` container, and the fused Parquet dataset at `/expanse/lustre/projects/uci157/rrogers/data/ml_ready_unified/`.
+
+  ```bash
+  # Step 1: Data Exploration
+  sbatch step01_data_exploration/slurm/run_data_exploration.sh
+
+  # Step 2: Model 1 -- XGBoost
+  sbatch step02_first_model/slurm/run_xgb.sh
+
+  # Step 3: Model 2 -- SVD + KMeans + XGBoost
+  sbatch step03_second_model/slurm/run_svd_kmeans.sh
+
+  # Step 4: Regenerate XGB error plots
+  sbatch step02_first_model/slurm/run_xgb_plots.sh
+  ```
+
+  Each script runs inside the Singularity container, binds the Lustre project directory, and outputs logs to `*_pipeline_<jobid>.out`.
+</details>
+
+<details>
+  <summary><b>Appendix B: Mathematical Specification</b></summary>
+  <br>
+
+  **Label Construction (Dual-Sensor Agreement):**
+
+  $$\text{label} = \mathbb{1}\left[\text{LWE}_\text{quarterly} < \mu_\text{mascon} - 0.5\sigma_\text{mascon}\right] \wedge \mathbb{1}\left[\Delta h < \mu_\text{regional} - 0.5\sigma_\text{regional}\right]$$
+
+  **SVD Projection (RowMatrix.computeSVD):**
+
+  $$Z = X V_k, \quad V_k \in \mathbb{R}^{d \times k}, \quad k = 15$$
+
+  **XGBoost Objective:**
+
+  $$\mathcal{L}(\theta) = \sum_{i=1}^{n} w_i \cdot \ell(y_i, \hat{y}_i) + \Omega(f_t)$$
+
+  where $w_i$ encodes both regional importance weights and class balance via `scale_pos_weight`.
+
+  **Dynamic Threshold (F2-score sweep):**
+
+  $$t^* = \arg\max_t \frac{5 \cdot \text{Precision}(t) \cdot \text{Recall}(t)}{4 \cdot \text{Precision}(t) + \text{Recall}(t)}$$
+
+</details>
+
+---
+
+<p align="center">
+  <!-- PLACEHOLDER: update URL and branch before submission -->
+  <i>Repository: <a href="https://github.com/scotty-ucsd/dsc232_group_project/tree/reorg">github.com/scotty-ucsd/dsc232_group_project (branch: reorg)</a></i>
+</p>
