@@ -327,10 +327,10 @@ clf = SparkXGBClassifier(
 )
 ```
 
-Full code for baseline version: [`step02_first_model/slurm/02_xgb_baseline.py`](step02_first_model/slurm/02_xgb_baseline.py)
+Full code for baseline version: [`step02_first_model/slurm/02_xgb_baseline.py`](step02_first_model/slurm/02_xgb_baseline.py) \
 SLURM script for baseline version: [`step02_first_model/slurm/02_run_xgb_baseline.sh`](step02_first_model/slurm/02_run_xgb_baseline.sh)
 
-Full code for tuned version: [`step02_first_model/slurm/03_xgb_tuned.py`](step02_first_model/slurm/03_xgb_tuned.py)
+Full code for tuned version: [`step02_first_model/slurm/03_xgb_tuned.py`](step02_first_model/slurm/03_xgb_tuned.py) \
 SLURM script for tuned version: [`step02_first_model/slurm/03_run_xgb_tuned.sh`](step02_first_model/slurm/03_run_xgb_tuned.sh)
 
 ---
@@ -389,7 +389,7 @@ for t in np.arange(0.10, 0.96, 0.02):
     fb = (1 + 4) * prec * rec / (4 * prec + rec + 1e-9)  # F2-score
 ```
 
-Full code: [`step03_second_model/slurm/01_svd_kmeans.py`](step03_second_model/slurm/01_svd_kmeans.py)
+Full code: [`step03_second_model/slurm/01_svd_kmeans.py`](step03_second_model/slurm/01_svd_kmeans.py) \
 SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_model/slurm/01_run_svd_kmeans.sh)
 
 ---
