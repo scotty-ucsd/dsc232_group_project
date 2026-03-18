@@ -46,7 +46,7 @@ We fuse five heterogeneous satellite datasets -- ICESat-2 laser altimetry, GRACE
 
 ### Why Big Data and Distributed Computing?
 
-This problem requires big data and distributed computing for three fundamental reasons.
+This problem requires big data and distributed computing for three fundamental reasons:
 
 **Data Volume.** Our fused spatiotemporal dataset comprises 1,386,866,499 rows x 28+ columns, representing over 38.8 billion unique observations spanning 2020 to 2025. The compressed Parquet footprint is approximately 40 GB. When uncompressed and loaded into memory for matrix operations, this data volume easily triples RAM usage compared to a local environment.
 
@@ -574,6 +574,8 @@ Several limitations affect the reliability of these results.
 
 **Spatial autocorrelation.** Adjacent pixels share features (ice geometry, ocean conditions). Our evaluation does not account for spatial dependence, which may inflate performance estimates. A spatially blocked cross-validation would give a more honest generalization estimate.
 
+**Upstream data synthesis errors.** The [step00 pre-processing pipeline](step00_dataset_synthesis/step00_data_synthesis_README.md) that fused five heterogeneous satellite datasets into a single Parquet feature store was built from scratch for this project. As a first attempt at multi-source geospatial fusion, it introduced known errors that propagate into all downstream models. The most significant is the `ice_area` column: ICESat-2 ATL15 reports fractional ice coverage per 1 km grid cell, but when regridding to the 500 m master grid, the pipeline assigned the same value to all four sub-pixels instead of dividing by four. This means `ice_area` is systematically overestimated by a factor of up to 4x, which inflates any feature that depends on it (including `mass_flux_proxy = delta_h * ice_area`). Additional upstream risks include float-precision coordinate joining (the DuckDB fusion uses `ROUND(y, 1)`, which is fragile across pipeline versions), a time-invariant ocean mask that may miss newly exposed ocean pixels in later time steps, and no automated dependency management between the nine pipeline scripts. These are the honest costs of building a novel continent-scale fusion pipeline under time constraints, and they underscore the importance of validation checks at every stage of the data lifecycle, not just at the modelling phase.
+
 > **Note on seemingly high metrics:** The F1/Precision/Recall values near 0.96 on val/test largely reflect majority-class prediction at the default threshold, not genuine rare-event detection. PR-AUC is the honest metric. The XGB models achieve 0.54 test PR-AUC, which is meaningful but still leaves substantial room for improvement -- roughly half of true basal loss events are not captured at operationally acceptable precision.
 
 ### 4.5 Impact of Distributed Computing
@@ -606,6 +608,9 @@ Several limitations affect the reliability of these results.
 
 **Aggressive feature pruning.** The 64-feature space for Model 1 could likely be reduced to 20-30 features without performance loss, using SHAP-based importance ranking. Fewer features would reduce the overfitting surface area.
 
+**Validate the data synthesis pipeline independently.** The [step00 pre-processing pipeline](step00_dataset_synthesis/step00_data_synthesis_README.md) was built under time pressure and never received its own dedicated validation pass. In hindsight, unit tests on the regridding logic (confirming that area-weighted quantities are divided correctly when upsampling) and round-trip consistency checks (fusing then un-fusing to compare against raw inputs) would have caught the `ice_area` duplication error before it propagated into 1.3 billion rows. The lesson is that data engineering deserves the same test discipline as model code.
+
+
 ### What We Would Explore With More Time
 
 **Multi-node training.** The current setup uses a single 32-core node. Multi-node Spark clusters would enable faster training, larger hyperparameter sweeps, and the ability to train on the full 1.3 billion row dataset without undersampling.
@@ -613,6 +618,8 @@ Several limitations affect the reliability of these results.
 **Deep learning on pixel time series.** A 1D-CNN or LSTM on the per-pixel monthly time series could capture temporal patterns that tree-based models miss, particularly the gradual acceleration signatures preceding MISI threshold crossings.
 
 **Uncertainty quantification.** Bootstrap prediction intervals for risk-critical predictions would be essential for any operational deployment: "this pixel has a 90% credible interval of [0.60, 0.85] for basal loss probability over the next 12 months."
+
+**Region-specific models.** The current pipeline trains a single continent-wide model, which forces Amundsen Sea positives (the highest-risk basin) to compete for signal against hundreds of millions of stable Ross and Ronne pixels. A per-region modelling strategy, training separate classifiers for each drainage basin, would let each model learn the local feature-target relationship without being drowned out by the continent-wide negative mean. The regional PR-AUC breakdown already shows that model performance varies dramatically by basin, which suggests that a single decision boundary is a poor fit for physically distinct regions. Per-region models would also sidestep the sparse positive problem: the Amundsen Sea positive rate is roughly 8%, compared to under 2% continent-wide, so a dedicated Amundsen model would train on a far more balanced dataset without aggressive undersampling.
 
 ---
 
