@@ -232,7 +232,7 @@ stages = [
 
 **Feature Engineering (Model 2 -- SVD pipeline)**
 
-The SVD pipeline uses 20 clean non-leaky features to avoid temporal leakage:
+The SVD pipeline uses 20 clean features:
 
 ```python
 FEATURES_CLEAN = [
@@ -250,7 +250,7 @@ FEATURES_CLEAN = [
 ]
 ```
 
-Regional residualization was applied to all ocean features using training-split means only, then lag features and engineered features were added before scaling:
+Regional residualization was applied to all ocean features using training-split means. Lag features were then computed and appended before scaling:
 
 ```python
 # Regional residualization (train means only -- no leakage)
@@ -372,10 +372,10 @@ for k_test in [4, 6, 8, 10]:
 
 **Step 4: XGBoost on SVD + cluster features**
 
-The cluster ID was appended to the SVD feature vector (16 total dimensions) and passed to SparkXGBClassifier with `scale_pos_weight` capped at 15 and dynamic threshold calibration on the validation set using F2-score (emphasizing recall).
+The cluster ID was appended to the SVD feature vector, yielding 16 total input dimensions. SparkXGBClassifier was trained with scale_pos_weight capped at 15. Classification threshold was calibrated on the validation set via F2-score sweep over the range [0.10, 0.96].
 
 ```python
-# Append cluster ID to SVD features (FIX 8)
+# Append cluster ID to SVD features
 df = VectorAssembler(
     inputCols=pc_cols + ["cluster_float"],
     outputCol="xgb_features",
