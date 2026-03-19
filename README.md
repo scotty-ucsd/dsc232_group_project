@@ -117,7 +117,7 @@ n_pixels = df.select("x", "y").distinct().count()
 
 ![Fused Histograms](step04_final_report/imgs/fig_03_histograms_antarctica_sparse_features.png)
 
-The surface and bedrock elevation distributions reflect the Antarctic topography: a high-elevation interior plateau and deep marine basins below sea level. The delta_h (surface height change) distribution is heavily concentrated near zero with a long negative tail -- most pixels are stable, with active thinning confined to ice shelf margins.
+The surface and bedrock elevation distributions reflect the Antarctic topography: a high-elevation interior plateau and deep marine basins below sea level. The `delta_h` (surface height change) distribution  is concentrated near zero with a long negative tail, with active thinning concentrated at ice shelf margins. 
 
 **Figure 4: Feature Distributions -- Individual Datasets**
 
@@ -133,7 +133,7 @@ The surface and bedrock elevation distributions reflect the Antarctic topography
 
 ![Correlation Heatmap](step04_final_report/imgs/fig_04_correlation_antarctica_sparse_features.png)
 
-Ice surface elevation shows strong correlation with ice thickness and, to a lesser degree, bedrock elevation -- physically expected as surface height reflects the integrated ice column.
+Ice surface elevation shows strong correlation with ice thickness and moderate correlation with bedrock elevation. Strong multicollinearity is also present within the ocean feature group and the GRACE feature group.
 
 **Figure 6: Physical Variable Ranges**
 
@@ -143,19 +143,19 @@ Ice surface elevation shows strong correlation with ice thickness and, to a less
 
 ![Null Structure](step04_final_report/imgs/fig_06_null_structure.png)
 
-Missing ocean data is expected and physically meaningful: ocean thermodynamics are only defined where ocean water contacts the ice shelf base. The approximately 8% missing ICESat-2 values are due to gaps in netCDF source files.
+Ocean features are null for inland pixels; ocean thermodynamics are only defined where ocean water contacts the ice shelf base. Approximately 8% of ICESat-2 `delta_h` values are missing due to orbital coverage gaps in the source netCDF files.
 
 **Figure 8: Ice Mask and Ocean Coverage**
 
 ![Ice Mask](step04_final_report/imgs/fig_07_ice_mask_ocean_coverage.png)
 
-Floating ice correctly appears along coastlines and inlet bays rather than in the continental interior. Ocean temperature values are co-located with the floating ice mask -- a spatial consistency check confirming the fusion was performed correctly.
+Floating ice appears along coastlines and inlet bays. Ocean temperature values are co-located with the floating ice mask.
 
 **Figure 9: Height Change and Mass Anomaly Spatial Distribution**
 
 ![Delta H vs LWE](step04_final_report/imgs/fig_08_delta_h_vs_lwe_spatial.png)
 
-The greatest surface height changes concentrate near the coasts, consistent with basal melt-driven thinning. Mass anomalies from GRACE are co-located with the same coastal regions.
+Surface height changes are largest near the coasts. GRACE mass anomalies are co-located with the same coastal regions.
 
 **Figure 10: Mean Ice Height Change Over Time**
 
@@ -165,7 +165,7 @@ The greatest surface height changes concentrate near the coasts, consistent with
 
 ![LWE Timeseries](step04_final_report/imgs/fig_10_lwe_timeseries.png)
 
-The LWE (liquid water equivalent) trend shows a steady decline over the observation period, consistent with accelerating mass loss from Antarctic ice shelves.  The spike in late 2019-2020 turned out to be a result of filling missing values with zero: with zeros instead of the more typical negative values, the mean spiked.  We obviously rectified the problem after we saw this in the EDA stage. 
+LWE shows a steady decline over the observation period. The spike in late 2019--2020 reflects missing values that had been filled with zero rather than interpolated; this was corrected prior to modeling.
 
 --- 
 
