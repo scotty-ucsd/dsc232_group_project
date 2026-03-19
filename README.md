@@ -452,7 +452,7 @@ For the sake of brevity and clarity, we have omitted additional graphs that more
 
 ![Eigenvalue Analysis](step04_final_report/imgs/SVD_eigenvalue_analysis.png)
 
-The top 15 principal components retain 97.6% of the variance in the 20-feature scaled matrix. The singular value decay is rapid -- the first 5 components capture the majority of variance -- indicating that the feature space has strong low-dimensional structure.
+The top 15 principal components retain 97.6% of the variance in the 20-feature scaled matrix. Singular value decay is rapid; the first 5 components account for the majority of explained variance.
 
 **Figure 15: KMeans Clustering: Clusters in PC Space (best k=8, silhouette=0.2356)**
 
@@ -481,9 +481,7 @@ The top 15 principal components retain 97.6% of the variance in the 20-feature s
 | ross | 0.0447 | 0.9088 | 0.8357 | 1,274,973 |
 | totten_and_aurora | 0.2005 | 0.9818 | 0.8324 | 1,322,004 |
 
-**Amundsen Sea TPR: 0.7604 (PASS -- target >= 0.50)**
-
-Threshold used: 0.66 (calibrated on validation set via F2-score sweep)
+*Classification threshold: 0.66, calibrated on the validation set via F2-score sweep.*
 
 **Confusion Matrix -- SVD_XGB Test Set**
 
