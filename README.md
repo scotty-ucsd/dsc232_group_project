@@ -167,9 +167,9 @@ The greatest surface height changes concentrate near the coasts, consistent with
 
 ![LWE Timeseries](step04_final_report/imgs/fig_10_lwe_timeseries.png)
 
-The LWE (liquid water equivalent) trend shows a steady decline over the observation period, consistent with accelerating mass loss from Antarctic ice shelves.
+The LWE (liquid water equivalent) trend shows a steady decline over the observation period, consistent with accelerating mass loss from Antarctic ice shelves.  The spike in late 2019-2020 turned out to be a result of filling missing values with zero: with zeros instead of the more typical negative values, the mean spiked.  We obviously rectified the problem after we saw this in the EDA stage. 
 
----
+--- 
 
 ### 2.2 Preprocessing
 
