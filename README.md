@@ -431,6 +431,20 @@ SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_m
 | ross | 0.0684 | 0.0371 | 34,371,219 |
 | totten_and_aurora | 0.0650 | 0.0827 | 15,988,044 |
 
+
+
+**Figure 12: Overall Confusion Matrix -- XGB Baseline Test Set**
+
+![XGB Baseline Confusion Matrix](step04_final_report/imgs/XGB_Baseline_confusion_matrix_test.png)
+
+
+
+**Figure 13: Overall Confusion Matrix -- XGB Tuned Test Set**
+
+![XGB Tuned Confusion Matrix](step04_final_report/imgs/XGB_Tuned_confusion_matrix_test.png)
+
+
+<!--
 **Figure 12: XGB Baseline -- Geographic Errors**
 
 ![XGB Baseline Geo Errors](step04_final_report/imgs/XGB_Baseline_geo_errors.png)
@@ -454,6 +468,7 @@ SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_m
 **Figure 17: XGB Tuned -- Temporal Error Rates**
 
 ![XGB Tuned Temporal](step04_final_report/imgs/XGB_Tuned_temporal_residuals.png)
+-->
 
 ---
 
