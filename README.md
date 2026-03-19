@@ -519,37 +519,23 @@ The high F1, Precision, and Recall values on val/test (around 0.97) are artifact
 
 ### 4.2 Model 1 Interpretation
 
-Both XGBoost models achieved strong generalization with small train-test gaps:
-
-```
-XGB_Baseline:
-  Train ROC-AUC: 0.9959
-  Test  ROC-AUC: 0.9779  (gap: 0.0180)
-  Test  PR-AUC:  0.5474
-  -> GOOD FIT
-
-XGB_Tuned:
-  Train ROC-AUC: 0.9960
-  Test  ROC-AUC: 0.9676  (gap: 0.0285)
-  Test  PR-AUC:  0.5035
-  -> GOOD FIT
-```
+Both models generalized well, with small train-test ROC-AUC gaps: 0.018 for the baseline and 0.029 for the tuned model.
 
 The baseline outperformed the tuned model on the primary metric (PR-AUC 0.5474 vs 0.5035). The tuned model's lower learning rate and more aggressive regularization slightly reduced its ability to fit the rare positive class distribution. Both models substantially improved on the physics threshold baseline (PR-AUC 0.0394), demonstrating the learned features capture genuine signal beyond simple anomaly thresholds.
 
-The regional breakdown shows both models now detecting basal loss across all regions at reasonable rates. Amundsen Sea predicted rates (9.36% baseline, 7.35% tuned) still underestimate the true rate (12.76%), but this is now a 1.4x gap rather than the 40x underestimation we observed in earlier runs before fixing `num_workers`, `tree_method="hist"`, and the preprocessing cache.
+The regional breakdown shows both models detecting basal loss across all regions. Amundsen Sea predicted rates (9.36% baseline, 7.35% tuned) both underestimate the true rate of 12.76%, reflecting the difficulty of the rare-event detection task in that region.
 
 However, results should be scrutinized carefully. The high ROC-AUC values (0.97+) are partly inflated by the dominant true-negative count at the 3% positive rate. PR-AUC of 0.54 is meaningfully above the physics baseline but still indicates the model misses roughly half of true positive events in precision-recall space. The threshold calibration analysis shows the best F1 on test is 0.63 (at threshold 0.40), meaning even with optimal thresholding a significant fraction of events are missed or falsely alarmed.
 
 ### 4.3 Model 2 Interpretation
 
-The SVD + KMeans + XGBoost pipeline used only 20 clean non-leaky features with regional residualization, trading overall performance for improved transparency and reduced leakage risk.
+The SVD + KMeans + XGBoost pipeline used 20 features with regional residualization applied using training-split means only.
 
-The Amundsen Sea TPR of 0.7604 passed the target of 0.50, which is the strongest result for the most scientifically critical region. The KMeans clustering contributed meaningful structure -- cluster positive rates ranged from 0.046 to 0.132 across the 8 clusters, and appending the cluster ID as a feature gave XGBoost a direct signal for regional instability patterns.
+The Amundsen Sea TPR of 0.7604 is the strongest regional result and is notable given that the Amundsen Sea represents the highest-risk region in the dataset. The KMeans clustering contributed meaningful structure. Cluster positive rates ranged from 0.046 to 0.132 across the 8 clusters, and appending the cluster ID as a feature gave XGBoost a direct signal for regional instability patterns.
 
 The train-test PR-AUC gap (0.2870 vs 0.0777) indicates overfitting, though the model correctly identifies itself as such in the fitting analysis. The root cause is that 15 SVD components on 20 features compress the feature space substantially, but with `scale_pos_weight=10.52` and aggressive undersampling, the model still learns to predict positive nearly everywhere (FPR of 0.85+ across all regions). The 0.66 threshold calibrated via F2-score helps but cannot overcome the fundamental precision issue: 104 million false positives against 4.6 million true positives.
 
-The comparison between Model 1 and Model 2 is instructive. Model 1 with 64 engineered features and full MinMaxScaler preprocessing achieves PR-AUC 0.54 with good fit. Model 2 with 20 clean features achieves PR-AUC 0.08 but with better Amundsen recall (76% vs the baseline's 94% predicted rate which still underestimates true rate). The dimensionality reduction forces more conservative, generalized predictions at the cost of overall discriminative power.
+The comparison between Model 1 and Model 2 is instructive. Model 1 with 64 engineered features and full MinMaxScaler preprocessing achieves PR-AUC 0.54 with good fit. Model 2 achieves PR-AUC 0.08 with an Amundsen Sea TPR of 76%, compared to the baseline predicted rate of 9.36% against a true rate of 12.76%. The dimensionality reduction forces more conservative, generalized predictions at the cost of overall discriminative power.
 
 The 0.66 threshold reflects the asymmetric cost structure: missing a genuine basal loss event in a high-risk region is treated as more costly than a false alarm, which is the correct scientific prioritization for MISI early-warning applications.
 
@@ -569,7 +555,7 @@ Several limitations affect the reliability of these results.
 
 ### 4.5 Impact of Distributed Computing
 
-| Operation | Serial Estimate | Distributed (Spark) | Enabled By |
+| Operation | Serial Estimate (approximate) | Distributed (Spark) | Enabled By |
 |---|---|---|---|
 | Feature engineering (windows) | ~8 hours | ~45 min | Partitioned Window parallelism |
 | XGBoost training | Impossible (OOM) | ~90 min | Barrier-mode histogram construction |
@@ -615,9 +601,9 @@ Several limitations affect the reliability of these results.
 ## 6. Statement of Collaboration
 [Back to Top](#top)
 
-**Scotty Rogers** (Pipeline Architect and Data Engineer): Designed and implemented the end-to-end Spark pipeline including raw data fusion (5 satellite datasets), feature engineering (64+ features), label construction (dual-sensor agreement), XGBoost and SVD/KMeans model training, and HPC deployment on SDSC Expanse. Managed the Singularity container environment and SLURM job scheduling. Debugged all OOM and checkpoint issues throughout the pipeline.
+**Scotty Rogers** built and maintained the end-to-end Spark pipeline: raw data fusion across five satellite datasets, feature engineering, label construction, XGBoost and SVD/KMeans model training, and HPC deployment on SDSC Expanse. Also handled the Singularity container setup, SLURM job scheduling, and debugging of OOM and checkpoint failures throughout the project. Contributed to the final writeup. 
 
-**Hans Hanson**: Took lead on writeups and logistics/organization, contributed EDA plots and analysis, tested code and data subsets for debugging.
+**Hans Hanson** led the writeups, project organization, and milestone deadline management, contributed EDA plots and analysis, and tested code and data subsets during debugging.
 
 ---
 
