@@ -38,16 +38,19 @@
 
 ### Why This Project?
 
-* This project started from a simple motivation: find a real, underused public dataset, learn how scientific data actually gets processed in practice, and work on something worth caring about. Antarctic ice turned out to check all three boxes.
-* The Antarctic Ice Sheet contains enough frozen water to raise global mean sea levels by approximately 58 meters. That number is not a worst-case scenario. This is the physical upper bound sitting on bedrock right now. The West Antarctic portion of that ice sheet is the most unstable, and it is losing mass at an accelerating rate. The mechanism driving this is called Marine Ice Sheet Instability (MISI): warm ocean water intrudes beneath floating ice shelves, melts them from below, and reduces their ability to hold back the glaciers behind them. Once the grounding line( *the point where the glacier lifts off the bed and begins floating* ) retreats into deeper water, ice discharge accelerates and the process can become self-sustaining. There is no natural brake. Predicting where and when the ice sheet approaches these thresholds matters enormously for climate projections, coastal infrastructure planning, and long-term policy.
-* Improving the predictability of Antarctic ice dynamics is also an active scientific priority. The National Academies of Sciences' most recent decadal strategy for Earth observation from space identified it as a high-importance objective, reflecting how much uncertainty still exists in our best models
+* Three motives inspired this project: to find a real, underused public dataset, to learn how scientific data actually gets processed in practice, and to work on something of scientific, political, and moral concern.  Attempting to predict Antarctic ice sheet instability fulfilled all three desires.
+
+* The Antarctic Ice Sheet contains enough frozen water to raise global mean sea levels by approximately 58 meters. That number is not a worst-case scenario; it is the physical upper bound currently sitting on bedrock. The West Antarctic portion of that ice sheet is the most unstable and it is losing mass at an accelerating rate. The mechanism driving this is called Marine Ice Sheet Instability (MISI): warm ocean water intrudes beneath floating ice shelves, melts them from below, and reduces their ability to hold back the glaciers behind them. Once the grounding line (the point where the glacier lifts off the bed and begins floating) retreats into deeper water, ice discharge accelerates and the process can become self-sustaining. There is no natural brake. Predicting where and when the ice sheet approaches these thresholds matters enormously for climate projections, coastal infrastructure planning, and long-term policy.
+
+* Improving the predictability of Antarctic ice dynamics is also an active scientific priority. The National Academies of Sciences' most recent decadal strategy for Earth observation from space identified it as a high-importance objective, reflecting how much uncertainty still exists in our best models.
 
 ### Why Big Data and Distributed Computing?
- * **TLDR:** The dataset is too large to handle any other way.
 
-* The fused dataset used in this project contains approximately 1.39 billion rows. Stored in Parquet ( *a compressed columnar format optimized for analytical workloads* ) is roughly 40 GB on disk. For comparison, the same data saved as a plain .csv file, the kind opened in Excel, would land somewhere above 300 GB. That is before doing any computation on it.
-* The problem compounds when you start engineering features. Detecting ice instability requires computing per-pixel time series across millions of spatial locations, constructing lagged signals, regional anomalies, and ocean interaction terms. These operations that generate tens of billions of intermediate calculations. The lag feature engineering pipeline alone produces several gigabytes  of shuffle data in a single processing phase. On a single machine, this would require careful manual batching ( *as done for the dataset creation before SDSC access* ) and likely days of computing. On a laptop, it would not finish.
-* Apache Spark made this feasible by distributing the computation across a cluster at the San Diego Supercomputer Center. Without it, the feature store, the dimensionality reduction, and the model training described in this report would not have been practical at this scale.
+* In short (and to be blunt), the dataset is too large to handle any other way.  The fused dataset used in this project contains approximately 1.39 billion rows. Stored in Parquet (a compressed columnar format optimized for analytical workloads) it is roughly 40 GB on disk. For comparison, the same data saved as a plain .csv file, the kind opened in Excel, would land somewhere above 300 GB. And that is before doing any computations on it.
+
+* The problem compounds when you start engineering features. Detecting ice instability requires computing per-pixel time series across millions of spatial locations, constructing lagged signals, regional anomalies, and ocean interaction terms. These operations that generate tens of billions of intermediate calculations. The lag feature engineering pipeline alone produces several gigabytes of shuffle data in a single processing phase. On a single machine, this would require careful manual batching (as done for the dataset creation before SDSC access) and likely entire days of computing. On a laptop, it would not finish.
+
+* Apache Spark made this project feasible by distributing the computation across a cluster at the San Diego Supercomputer Center (SDSC). Without it, the feature store, the dimensionality reduction, and the model training described in this report would not have been practical at this scale.
 
 ### Project Overview
 
@@ -439,45 +442,23 @@ SLURM script: [`step03_second_model/slurm/01_run_svd_kmeans.sh`](step03_second_m
 ![XGB Tuned Confusion Matrix](step04_final_report/imgs/XGB_Tuned_confusion_matrix_test.png)
 
 
-<!--
-**Figure 12: XGB Baseline -- Geographic Errors**
-
-![XGB Baseline Geo Errors](step04_final_report/imgs/XGB_Baseline_geo_errors.png)
-
-**Figure 13: XGB Baseline -- Regional Error Rates**
-
-![XGB Baseline Regional](step04_final_report/imgs/XGB_Baseline_regional_errors.png)
-
-**Figure 14: XGB Baseline -- Temporal Error Rates**
-
-![XGB Baseline Temporal](step04_final_report/imgs/XGB_Baseline_temporal_residuals.png)
-
-**Figure 15: XGB Tuned -- Geographic Errors**
-
-![XGB Tuned Geo Errors](step04_final_report/imgs/XGB_Tuned_geo_errors.png)
-
-**Figure 16: XGB Tuned -- Regional Error Rates**
-
-![XGB Tuned Regional](step04_final_report/imgs/XGB_Tuned_regional_errors.png)
-
-**Figure 17: XGB Tuned -- Temporal Error Rates**
-
-![XGB Tuned Temporal](step04_final_report/imgs/XGB_Tuned_temporal_residuals.png)
--->
+For the sake of brevity and clarity, we have omitted additional graphs that more deeply explored the results from the XGB Baseline and Tuned models, saving this in-depth analysis for our final model.  However, they are available in the [step04_final_report/imgs](step04_final_report/imgs/) directory (see filenames begininning with "XGB_Baseline" or "XGB_Tuned").
 
 ---
 
 ### 3.2 Model 2: SVD + KMeans + SparkXGBClassifier
 
-**SVD Explained Variance (k=15, cumulative variance = 0.9764)**
+**Figure 14: SVD Explained Variance (k=15, cumulative variance = 0.9764)**
 
 ![Eigenvalue Analysis](step04_final_report/imgs/SVD_eigenvalue_analysis.png)
 
 The top 15 principal components retain 97.6% of the variance in the 20-feature scaled matrix. The singular value decay is rapid -- the first 5 components capture the majority of variance -- indicating that the feature space has strong low-dimensional structure.
 
-**KMeans Clustering (best k=8, silhouette=0.2356)**
+**Figure 15: KMeans Clustering: Clusters in PC Space (best k=8, silhouette=0.2356)**
 
 ![Cluster Scatter](step04_final_report/imgs/SVD_KMeans_cluster_scatter.png)
+
+**Figure 16: KMeans Clustering: Ground Truth in PC Space (best k=8, silhouette=0.2356)**
 
 ![Label Scatter](step04_final_report/imgs/SVD_KMeans_label_scatter.png)
 
@@ -511,19 +492,19 @@ Threshold used: 0.66 (calibrated on validation set via F2-score sweep)
 | **Actual Positive** | 4,635,191 (TP) | 558,416 (FN) |
 | **Actual Negative** | 104,913,366 (FP) | 16,609,783 (TN) |
 
-**Figure 18: SVD_XGB -- Geographic Errors**
+**Figure 17: SVD_XGB -- Geographic Errors**
 
 ![SVD XGB Geo Errors](step04_final_report/imgs/SVD_XGB_geo_errors.png)
 
-**Figure 19: SVD_XGB -- Errors Only (FP + FN)**
+**Figure 18: SVD_XGB -- Errors Only (FP + FN)**
 
 ![SVD XGB Errors Only](step04_final_report/imgs/SVD_XGB_errors_only.png)
 
-**Figure 20: SVD_XGB -- Regional Error Rates**
+**Figure 19: SVD_XGB -- Regional Error Rates**
 
 ![SVD XGB Regional](step04_final_report/imgs/SVD_XGB_regional_errors.png)
 
-**Figure 21: SVD_XGB -- Temporal Error Rates**
+**Figure 20: SVD_XGB -- Temporal Error Rates**
 
 ![SVD XGB Temporal](step04_final_report/imgs/SVD_XGB_temporal_residuals.png)
 
@@ -693,5 +674,5 @@ Several limitations affect the reliability of these results.
 
 <p align="center">
   <!-- PLACEHOLDER: update URL and branch before submission -->
-  <i>Repository: <a href="https://github.com/scotty-ucsd/dsc232_group_project/tree/reorg">github.com/scotty-ucsd/dsc232_group_project (branch: reorg)</a></i>
+  <i>Repository: <a href="https://github.com/scotty-ucsd/dsc232_group_project.git">github.com/scotty-ucsd/dsc232_group_project</a></i>
 </p>
